@@ -27,6 +27,10 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/oauth?next=/protected`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       })
 
