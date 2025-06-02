@@ -4,7 +4,7 @@ import { useChat } from '@ai-sdk/react';
 
 export default function ChatUI({ workspaceName }: { workspaceName: string }) {
     const bottomRef = useRef<HTMLDivElement>(null)
-    const { messages, input, handleInputChange, handleSubmit, setMessages, setInput } = useChat({
+    const { messages, input, handleSubmit, setInput } = useChat({
         api: "/api/chat",
         body: {
             systemType: "empty_category"

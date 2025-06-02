@@ -20,7 +20,7 @@ export const suggestCategoriesTool = createTool({
         });
         let categories: string[] = [];
         try {
-            const match = result.text.match(/\[.*\]/s);
+            const match = result.text.match(/\[[\s\S]*\]/);
             if (match) {
                 categories = JSON.parse(match[0]);
             } else {
@@ -28,6 +28,7 @@ export const suggestCategoriesTool = createTool({
             }
         } catch (e) {
             categories = [];
+            console.error(e);
         }
         return { categories };
     },

@@ -2,25 +2,18 @@ import { google } from '@ai-sdk/google';
 import { streamText } from 'ai';
 import { tools } from '@/lib/ai/tools';
 
+
+// メッセージの型
+type Message = {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+}
+
 export async function POST(req: Request) {
-    const { messages, systemType } = await req.json();
+    const { messages, systemType }: { messages: Message[], systemType: string } = await req.json();
 
     // 最新のユーザー発言（最初のワークスペース名）を取得
-    const firstUserMessage = messages.find(m => m.role === 'user')?.content ?? "";
-
-    // toolsのsuggestCategoriesToolのパラメータを補完
-    const toolsWithParam = {
-        ...tools,
-        suggestCategories: {
-            ...tools.suggestCategories,
-            execute: async (params: any) => {
-                if (!params.workspaceName) {
-                    params.workspaceName = firstUserMessage;
-                }
-                return tools.suggestCategories.execute(params);
-            }
-        }
-    };
+    const firstUserMessage = messages.find((m: Message) => m.role === 'user')?.content ?? "";
 
     let systemMessage = "";
     if (systemType === "empty_category") {
@@ -35,7 +28,7 @@ export async function POST(req: Request) {
         model: google('gemini-2.0-flash'),
         system: systemMessage,
         messages,
-        tools: toolsWithParam,
+        tools,
         maxSteps: 5,
     });
     return response.toDataStreamResponse();

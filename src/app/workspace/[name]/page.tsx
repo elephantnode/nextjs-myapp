@@ -26,7 +26,7 @@ type Workspace = {
     slug: string
 }
 
-export default async function WorkspacePage({ params }: { params: { name: string } }) {
+export default async function WorkspacePage({ params }: { params: Promise<{ name: string }> }) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
