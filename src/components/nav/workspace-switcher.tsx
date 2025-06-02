@@ -102,6 +102,28 @@ export function WorkspaceSwitcher({
         setItems(workspaces.map(w => w.id));
     }, [workspaces]);
 
+    if (!workspaces || workspaces.length === 0) {
+        const [dialogOpen, setDialogOpen] = useState(true);
+        return (
+            <>
+                <div className="flex flex-col items-center justify-center h-full p-8">
+                    <div className="text-sm font-semibold mb-4">No Workspace</div>
+                    <button
+                        className="text-sm px-4 py-2 bg-primary text-white rounded shadow hover:bg-primary/80 mb-4"
+                        onClick={() => setDialogOpen(true)}
+                    >
+                        Add Workspace
+                    </button>
+                </div>
+                <WorkspaceDialog
+                    open={dialogOpen}
+                    onOpenChange={setDialogOpen}
+                    onSubmit={() => setDialogOpen(false)}
+                />
+            </>
+        );
+    }
+
     if (!activeWorkspace) {
         return null
     }
@@ -163,6 +185,14 @@ export function WorkspaceSwitcher({
         router.refresh()
     }
 
+    const handleDeleteWorkspace = async (slug: string) => {
+        if (!window.confirm('本当にこのワークスペースを削除しますか？この操作は元に戻せません。')) {
+            return;
+        }
+        await supabase.from('workspaces').delete().eq('slug', slug)
+        router.refresh()
+    }
+
     return (
         <SidebarMenu>
             <SidebarMenuItem>
@@ -200,7 +230,8 @@ export function WorkspaceSwitcher({
                         >
                             <SortableContext items={items} strategy={verticalListSortingStrategy}>
                                 {items.map((id, index) => {
-                                    const workspace = workspaces.find(w => w.id === id)!;
+                                    const workspace = workspaces.find(w => w.id === id);
+                                    if (!workspace) return null;
                                     const WorkspaceIcon = workspace.icon ? IconMap[workspace.icon as keyof typeof IconMap] : undefined;
                                     return (
                                         <SortableWorkspaceItem
@@ -238,6 +269,7 @@ export function WorkspaceSwitcher({
                 onOpenChange={setDialogOpen}
                 initial={editTarget ? { name: editTarget.name, icon: editTarget.icon, slug: editTarget.slug } : undefined}
                 onSubmit={handleSubmit}
+                onDelete={editTarget ? (slug) => handleDeleteWorkspace(slug) : undefined}
             />
         </SidebarMenu>
     )

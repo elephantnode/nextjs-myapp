@@ -14,13 +14,21 @@ type Props = {
     initial?: WorkspaceFormValues
     onSubmit: (values: WorkspaceFormValues) => void
     onCancel: () => void
+    onDelete?: (slug: string) => void
 }
 
-export function WorkspaceForm({ initial, onSubmit, onCancel }: Props) {
+export function WorkspaceForm({ initial, onSubmit, onCancel, onDelete }: Props) {
     const [name, setName] = useState(initial?.name ?? "")
     const [icon, setIcon] = useState(initial?.icon ?? "Folder")
     const [slug, setSlug] = useState(initial?.slug ?? "")
-    const [slugEdited, setSlugEdited] = useState(false)
+    const [slugEdited, setSlugEdited] = useState(!!initial?.slug)
+
+    useEffect(() => {
+        if (initial?.slug) {
+            setSlug(initial.slug)
+            setSlugEdited(true)
+        }
+    }, [initial?.slug])
 
     useEffect(() => {
         if (!slugEdited) {
@@ -71,6 +79,15 @@ export function WorkspaceForm({ initial, onSubmit, onCancel }: Props) {
             </label>
             <div className="flex gap-2 justify-end">
                 <Button type="button" variant="outline" onClick={onCancel}>キャンセル</Button>
+                {initial && onDelete && (
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => onDelete(slug)}
+                    >
+                        削除
+                    </Button>
+                )}
                 <Button type="submit">{initial ? "保存" : "追加"}</Button>
             </div>
         </form>

@@ -16,11 +16,13 @@ export function WorkspaceDialog({
     onOpenChange,
     initial,
     onSubmit,
+    onDelete,
 }: {
     open: boolean
     onOpenChange: (open: boolean) => void
     initial?: WorkspaceFormValues
     onSubmit: (values: WorkspaceFormValues) => void
+    onDelete?: (slug: string) => void
 }) {
     const [error, setError] = useState<string | null>(null)
 
@@ -43,6 +45,7 @@ export function WorkspaceDialog({
                         onSubmit(values)
                     }}
                     onCancel={() => onOpenChange(false)}
+                    onDelete={onDelete}
                 />
                 {error && <div className="text-red-500 text-sm">{error}</div>}
             </DialogContent>
