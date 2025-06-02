@@ -1,9 +1,17 @@
 "use client"
 import { useRef, useEffect, useState } from "react"
 import { useChat } from '@ai-sdk/react';
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
-export default function ChatUI({ workspaceName }: { workspaceName: string }) {
+export default function ChatUI({ workspaceName, workspaceId }: { workspaceName: string, workspaceId: string }) {
     const bottomRef = useRef<HTMLDivElement>(null)
+
+    // propsのデバッグ
+    console.log('ChatUI props:', { workspaceName, workspaceId });
+    console.log('workspaceId type:', typeof workspaceId);
+    console.log('workspaceId length:', workspaceId?.length);
+
     const { messages, input, handleSubmit, setInput } = useChat({
         api: "/api/chat",
         body: {
@@ -15,7 +23,11 @@ export default function ChatUI({ workspaceName }: { workspaceName: string }) {
     })
 
     const [initialized, setInitialized] = useState(false)
-    const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+    const [selectedCategories, setSelectedCategories] = useState<Array<{ name: string, slug: string }>>([])
+    const [isRegistering, setIsRegistering] = useState(false)
+
+    const router = useRouter()
+    const supabase = createClient()
 
     useEffect(() => {
         if (!initialized && Array.isArray(messages) && messages.length === 0) {
@@ -43,12 +55,127 @@ export default function ChatUI({ workspaceName }: { workspaceName: string }) {
         setInput(value);
     }
 
-    const handleCategoryToggle = (cat: string) => {
+    const handleCategoryToggle = (category: { name: string, slug: string }) => {
         setSelectedCategories(prev =>
-            prev.includes(cat)
-                ? prev.filter(c => c !== cat)
-                : [...prev, cat]
+            prev.find(c => c.name === category.name)
+                ? prev.filter(c => c.name !== category.name)
+                : [...prev, category]
         );
+    };
+
+    const handleRegisterCategories = async () => {
+        if (selectedCategories.length === 0) return;
+
+        console.log('=== Registration Debug ===');
+        console.log('workspaceId:', workspaceId);
+        console.log('workspaceId type:', typeof workspaceId);
+        console.log('workspaceId valid:', !!workspaceId);
+
+        if (!workspaceId || workspaceId === 'undefined' || workspaceId === 'null') {
+            alert('ワークスペースIDが正しく設定されていません。');
+            console.error('Invalid workspaceId:', workspaceId);
+            return;
+        }
+
+        setIsRegistering(true);
+        try {
+            console.log('Starting registration...');
+            console.log('Selected categories:', selectedCategories);
+            console.log('Workspace ID:', workspaceId);
+
+            // 現在のユーザーを確認
+            const { data: { user } } = await supabase.auth.getUser();
+            console.log('Current user:', user);
+
+            if (!user) {
+                alert('ユーザーが認証されていません。');
+                return;
+            }
+
+            // 既存のカテゴリー名とslugを確認
+            const { data: existingCategories } = await supabase
+                .from('categories')
+                .select('name, slug')
+                .eq('workspace_id', workspaceId);
+
+            const existingNames = existingCategories?.map(c => c.name) || [];
+            const existingSlugSet = new Set(existingCategories?.map(c => c.slug) || []);
+            console.log('Existing categories:', existingNames);
+            console.log('Existing slugs:', Array.from(existingSlugSet));
+
+            // カテゴリーデータを準備（AIが生成したslugを使用）
+            const categoriesToInsert = [];
+
+            for (const [index, category] of selectedCategories.entries()) {
+                // 名前の重複チェック
+                if (existingNames.includes(category.name)) {
+                    console.log(`Skipping duplicate name: ${category.name}`);
+                    continue;
+                }
+
+                console.log('Processing category:', category);
+
+                // slug重複チェックと自動調整
+                let finalSlug = category.slug;
+                let counter = 1;
+
+                while (existingSlugSet.has(finalSlug)) {
+                    finalSlug = `${category.slug}-${counter}`;
+                    counter++;
+                    console.log(`Slug conflict, trying: ${finalSlug}`);
+                }
+
+                existingSlugSet.add(finalSlug); // 今回のバッチでの重複も防止
+                console.log(`Final slug for "${category.name}": ${finalSlug}`);
+
+                const categoryData = {
+                    workspace_id: workspaceId,
+                    name: category.name,
+                    slug: finalSlug,
+                    order: index,
+                    parent_id: null
+                };
+
+                console.log('Category data:', categoryData);
+                categoriesToInsert.push(categoryData);
+            }
+
+            console.log('Categories to insert:', categoriesToInsert);
+
+            if (categoriesToInsert.length === 0) {
+                alert('選択されたカテゴリーはすべて既に存在します。');
+                return;
+            }
+
+            // Supabaseにカテゴリーを一括挿入
+            const { data, error } = await supabase
+                .from('categories')
+                .insert(categoriesToInsert)
+                .select();
+
+            if (error) {
+                console.error('Supabase insert error:', error);
+                alert(`カテゴリー登録エラー: ${error.message}`);
+                return;
+            }
+
+            console.log('Successfully inserted categories:', data);
+
+            // 成功メッセージ
+            alert(`${categoriesToInsert.length}個のカテゴリーを登録しました！\nページをリロードして反映します。`);
+
+            // 選択状態をクリア
+            setSelectedCategories([]);
+
+            // ページをリロードして新しいカテゴリーを表示
+            window.location.reload();
+
+        } catch (error) {
+            console.error('エラー:', error);
+            alert(`エラーが発生しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+            setIsRegistering(false);
+        }
     };
 
     return (
@@ -65,21 +192,39 @@ export default function ChatUI({ workspaceName }: { workspaceName: string }) {
                                     {msg.content}
                                 </div>
                             </div>
+                            {/* toolInvocationsをチェック */}
                             {msg.toolInvocations?.map(toolInvocation => {
                                 if (toolInvocation.state === 'result' && toolInvocation.toolName === 'suggestCategories') {
                                     const { result } = toolInvocation;
                                     return (
-                                        <div key={toolInvocation.toolCallId} className="flex flex-wrap gap-2 mt-2">
-                                            {result.categories.map((cat: string) => (
-                                                <button
-                                                    key={cat}
-                                                    className={`px-3 py-1 rounded border ${selectedCategories.includes(cat) ? 'bg-primary text-white' : 'bg-muted'}`}
-                                                    onClick={() => handleCategoryToggle(cat)}
-                                                    type="button"
-                                                >
-                                                    {cat}
-                                                </button>
-                                            ))}
+                                        <div key={toolInvocation.toolCallId} className="space-y-3">
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {result.categories.map((category: { name: string, slug: string }) => (
+                                                    <button
+                                                        key={category.name}
+                                                        className={`px-3 py-1 rounded border ${selectedCategories.find(c => c.name === category.name) ? 'bg-primary text-white' : 'bg-muted'}`}
+                                                        onClick={() => handleCategoryToggle(category)}
+                                                        type="button"
+                                                    >
+                                                        {category.name} <span className="text-xs opacity-70">({category.slug})</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {selectedCategories.length > 0 && (
+                                                <div className="flex items-center gap-2 pt-2 border-t">
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {selectedCategories.length}個選択中:
+                                                    </span>
+                                                    <button
+                                                        className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 disabled:opacity-50"
+                                                        onClick={handleRegisterCategories}
+                                                        disabled={isRegistering}
+                                                        type="button"
+                                                    >
+                                                        {isRegistering ? '登録中...' : '選択したカテゴリーを登録'}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 }

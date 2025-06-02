@@ -27,6 +27,9 @@ type Workspace = {
 }
 
 export default async function WorkspacePage({ params }: { params: Promise<{ name: string }> }) {
+    console.log('=== PARAMS DEBUG ===');
+    console.log('Raw params:', params);
+    
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -35,6 +38,8 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
     }
 
     const { name } = await params
+    console.log('Destructured name:', name);
+    console.log('Name type:', typeof name);
 
     //Profileからユーザー情報を取得
     // ここでprofilesテーブルから追加情報を取得
@@ -80,11 +85,41 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
 
     const activeWorkspace = workspaces.find((workspace) => workspace.is_active)
 
+    // 現在表示中のワークスペース（URLのnameパラメータに対応）を取得
+    const currentWorkspace = workspaces.find((workspace) => workspace.slug === name)
+    
+    console.log('=== Server Side Debug ===');
+    console.log('URL name parameter:', name);
+    console.log('Available workspaces:', workspaces.map(w => ({ id: w.id, name: w.name, slug: w.slug })));
+    console.log('Raw workspaces data:', workspacesData);
+    console.log('Current workspace:', currentWorkspace);
+    console.log('Current workspace ID:', currentWorkspace?.id);
+    
+    // フォールバック処理: currentWorkspaceが見つからない場合はactiveWorkspaceまたは最初のワークスペースを使用
+    const targetWorkspace = currentWorkspace || activeWorkspace || workspaces[0];
+    
+    if (!targetWorkspace) {
+        console.error('No workspace found at all');
+        redirect('/workspace')
+    }
+    
+    console.log('Target workspace (fallback):', targetWorkspace);
+    console.log('Target workspace ID:', targetWorkspace.id);
+    
+    // デバッグ: targetWorkspaceを確認
+    console.log('=== FINAL DEBUG ===', {
+        targetWorkspace,
+        targetWorkspaceId: targetWorkspace.id,
+        targetWorkspaceKeys: Object.keys(targetWorkspace),
+        hasId: 'id' in targetWorkspace,
+        idValue: targetWorkspace.id
+    });
+
     // 表示中のワークスペース内カテゴリーを取得
     const { data: categories } = await supabase
         .from('categories')
         .select('*')
-        .eq('workspace_id', name)
+        .eq('workspace_id', targetWorkspace.id)
         .order('order', { ascending: true })
 
     console.log('categories', categories)
@@ -98,7 +133,10 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
                 <SidebarInset>
                     <div className="flex flex-1 flex-col gap-4 p-4">
                         {(!categories || categories.length === 0) ? (
-                            <EmptyCategoryChatSection workspaceName={activeWorkspace?.name ?? ""} />
+                            <EmptyCategoryChatSection 
+                                workspaceName={targetWorkspace.name} 
+                                workspaceId={targetWorkspace.id} 
+                            />
                         ) : (
                             <>
                                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">

@@ -91,24 +91,26 @@ export default async function WorkspaceTopPage({ params }: { params: Promise<{ n
                 <AppSidebar userProfile={userProfile} workspaces={workspaces} />
                 <SidebarInset>
                     <div className="flex flex-1 flex-col gap-4 p-4">
-                        {(!categories || categories.length === 0) ? (
-                            <EmptyCategoryChatSection workspaceName={activeWorkspace?.name ?? ""} />
-                        ) : (
-                            <>
-                                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                                    <div className="aspect-video rounded-xl bg-muted/50" />
-                                    <div className="aspect-video rounded-xl bg-muted/50" />
-                                    <div className="aspect-video rounded-xl bg-muted/50" />
-                                </div>
-                                <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min" />
-                                <div className="flex h-svh w-full items-center justify-center gap-2">
-                                    <p>
-                                        Hello <span>{userProfile.email}</span>
+                        <div className="flex flex-col items-center justify-center h-full p-8">
+                            <h1 className="text-2xl font-bold mb-4">ワークスペースを選択してください</h1>
+                            <p className="text-muted-foreground mb-8">
+                                サイドバーからワークスペースを選択するか、新しいワークスペースを作成してください。
+                            </p>
+                            {workspaces.length === 0 ? (
+                                <div className="text-center">
+                                    <p className="text-muted-foreground mb-4">ワークスペースがありません</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        サイドバーの「Add Workspace」から新しいワークスペースを作成してください。
                                     </p>
-                                    <LogoutButton />
                                 </div>
-                            </>
-                        )}
+                            ) : (
+                                <div className="text-center">
+                                    <p className="text-muted-foreground">
+                                        利用可能なワークスペース: {workspaces.length}個
+                                    </p>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                 </SidebarInset>

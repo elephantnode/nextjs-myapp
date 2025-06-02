@@ -18,8 +18,19 @@ export async function POST(req: Request) {
     let systemMessage = "";
     if (systemType === "empty_category") {
         systemMessage = `あなたはワークスペース「${firstUserMessage}」のカテゴリー設計を手伝うAIアシスタントです。
-        ユーザーの説明から最適なカテゴリーを5個以内で提案し、ツール呼び出しで返してください。
-        新しく説明があった場合は、聞き返さないように説明された内容を含めて5個で提案し直してください。`;
+
+役割：
+- ユーザーの具体的な説明や要求を理解する
+- その要求に特化したカテゴリーを提案する
+- 関係ないカテゴリーは提案しない
+- 最初に簡潔なメッセージで理解を示し、その後suggestCategoriesツールを1回だけ呼び出す
+
+手順：
+1. ユーザーの要求を理解していることを短く伝える
+2. suggestCategoriesツールを呼び出す際、workspaceNameとuserRequest（最新のユーザーメッセージ）を渡す
+3. ツール呼び出し後は追加の応答は不要
+
+重要：ユーザーが「本のカテゴリー」と言ったら本関連のみ、「旅行」と言ったら旅行関連のみを提案してください。`;
     } else {
         systemMessage = "あなたは親切なアシスタントです。";
     }
@@ -29,7 +40,7 @@ export async function POST(req: Request) {
         system: systemMessage,
         messages,
         tools,
-        maxSteps: 5,
+        maxSteps: 1,
     });
     return response.toDataStreamResponse();
 }
