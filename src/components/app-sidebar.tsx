@@ -239,7 +239,7 @@ export function AppSidebar({ userProfile, workspaces }: { userProfile: UserProfi
       className="top-(--header-height) h-[calc(100svh-var(--header-height))]!"
     >
       <SidebarHeader>
-        <WorkspaceSwitcher workspaces={workspaces} />
+        <WorkspaceSwitcher workspaces={workspaces} userProfile={userProfile} />
       </SidebarHeader>
       <SidebarContent>
         <NavCategories items={data.NavCategories} />

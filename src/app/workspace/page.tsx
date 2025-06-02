@@ -26,7 +26,7 @@ type Workspace = {
     slug: string
 }
 
-export default async function WorkspacePage({ params }: { params: { name: string } }) {
+export default async function WorkspaceTopPage({ params }: { params: { name: string } }) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -60,11 +60,6 @@ export default async function WorkspacePage({ params }: { params: { name: string
         .eq('user_id', user.id)
         .order('order', { ascending: true })
 
-    // 一つもなかったら親ページへリダイレクト
-    if (workspacesData?.length === 0) {
-        redirect('/workspace')
-    }
-
     // ワークスペース情報を整形
     const workspaces: Workspace[] = (workspacesData ?? []).map((workspace) => ({
         id: workspace.id,
@@ -76,7 +71,6 @@ export default async function WorkspacePage({ params }: { params: { name: string
         user_id: workspace.user_id,
         slug: workspace.slug,
     }))
-
 
     const activeWorkspace = workspaces.find((workspace) => workspace.is_active)
 
