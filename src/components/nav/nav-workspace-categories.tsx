@@ -14,6 +14,7 @@ import {
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { SortableCategoryItem } from "@/components/ui/sortableCategoryItem"
+import { DroppableCategoryItem } from "@/components/droppable-category-item"
 import { CategoryDialog } from "./category-dialog"
 import { CategoryFormValues } from "./category-form"
 import { CategoryIconMap } from "./category-icons"
@@ -30,7 +31,6 @@ import {
     SortableContext,
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Button } from "@/components/ui/button"
 
 type Category = {
     id: string
@@ -54,13 +54,17 @@ type Workspace = {
     slug: string
 }
 
+interface NavWorkspaceCategoriesProps {
+    categories: Category[]
+    currentWorkspace?: Workspace
+    enableItemDrop?: boolean
+}
+
 export function NavWorkspaceCategories({
     categories: initialCategories,
     currentWorkspace,
-}: {
-    categories: Category[]
-    currentWorkspace?: Workspace
-}) {
+    enableItemDrop = false
+}: NavWorkspaceCategoriesProps) {
     const params = useParams()
     const router = useRouter()
     const supabase = createClient()
@@ -87,7 +91,7 @@ export function NavWorkspaceCategories({
         return null
     }
 
-    // 並べ替え確定時の処理
+    // 並べ替え確定時の処理（カテゴリーの順序変更）
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event
         if (!over || active.id === over.id) return
@@ -160,6 +164,20 @@ export function NavWorkspaceCategories({
             const isActive = params?.category === category.slug
             const IconComponent = CategoryIconMap[category.icon as keyof typeof CategoryIconMap]
             
+            // アイテムドロップ対応版の場合
+            if (enableItemDrop) {
+                return (
+                    <SidebarMenuItem key={category.id}>
+                        <DroppableCategoryItem
+                            category={category}
+                            workspaceSlug={currentWorkspace.slug}
+                            isActive={isActive}
+                        />
+                    </SidebarMenuItem>
+                )
+            }
+
+            // 通常版（カテゴリー並び替え対応）
             const categoryContent = (
                 <SidebarMenuButton asChild isActive={isActive}>
                     <Link href={categoryUrl}>
@@ -204,43 +222,48 @@ export function NavWorkspaceCategories({
     return (
         <>
             <SidebarGroup>
-                <div className="flex items-center justify-between">
-                    <SidebarGroupLabel>カテゴリー</SidebarGroupLabel>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleAddCategory}
-                        className="h-6 w-6 p-0"
-                    >
-                        <Plus className="h-4 w-4" />
-                    </Button>
-                </div>
+                <SidebarGroupLabel>カテゴリー</SidebarGroupLabel>
                 <SidebarMenu>
-                    {isDndEnabled ? (
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleDragEnd}
-                        >
-                            <SortableContext
-                                items={items}
-                                strategy={verticalListSortingStrategy}
-                            >
-                                {renderCategoryList()}
-                            </SortableContext>
-                        </DndContext>
-                    ) : (
+                    {enableItemDrop ? (
+                        // アイテムドロップ対応版では並び替えを無効化
                         renderCategoryList()
+                    ) : (
+                        // 通常版では並び替え対応
+                        isDndEnabled ? (
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext items={items} strategy={verticalListSortingStrategy}>
+                                    {renderCategoryList()}
+                                </SortableContext>
+                            </DndContext>
+                        ) : (
+                            renderCategoryList()
+                        )
                     )}
+                    
+                    {/* 新規追加ボタン */}
+                    <SidebarMenuItem>
+                        <SidebarMenuButton onClick={handleAddCategory}>
+                            <Plus className="w-4 h-4" />
+                            <span>新しいカテゴリー</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarGroup>
-            
+
             <CategoryDialog
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
-                initial={editTarget ? { name: editTarget.name, slug: editTarget.slug, icon: editTarget.icon } : undefined}
                 onSubmit={handleSubmit}
-                onDelete={editTarget ? handleDeleteCategory : undefined}
+                onDelete={editTarget ? () => handleDeleteCategory(editTarget.slug) : undefined}
+                initial={editTarget ? {
+                    name: editTarget.name,
+                    slug: editTarget.slug,
+                    icon: editTarget.icon
+                } : undefined}
             />
         </>
     )

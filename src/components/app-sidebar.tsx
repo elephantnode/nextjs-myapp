@@ -49,12 +49,14 @@ export function AppSidebar({
   userProfile, 
   workspaces, 
   categories = [], 
-  currentWorkspace 
+  currentWorkspace,
+  enableItemDrop = false
 }: { 
   userProfile: UserProfile, 
   workspaces: Workspace[],
   categories?: Category[],
-  currentWorkspace?: Workspace 
+  currentWorkspace?: Workspace,
+  enableItemDrop?: boolean
 }) {
 
   return (
@@ -65,7 +67,11 @@ export function AppSidebar({
         <WorkspaceSwitcher workspaces={workspaces} userProfile={userProfile} />
       </SidebarHeader>
       <SidebarContent>
-        <NavWorkspaceCategories categories={categories} currentWorkspace={currentWorkspace} />
+        <NavWorkspaceCategories 
+          categories={categories} 
+          currentWorkspace={currentWorkspace}
+          enableItemDrop={enableItemDrop}
+        />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
