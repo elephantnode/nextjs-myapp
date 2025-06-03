@@ -178,11 +178,58 @@ export function WorkspaceSwitcher({
     }
 
     const handleDeleteWorkspace = async (slug: string) => {
-        if (!window.confirm('本当にこのワークスペースを削除しますか？この操作は元に戻せません。')) {
-            return;
+        const workspaceToDelete = workspaces.find(w => w.slug === slug)
+        if (!workspaceToDelete) {
+            console.error('削除対象のワークスペースが見つかりません')
+            return
         }
-        await supabase.from('workspaces').delete().eq('slug', slug)
-        router.refresh()
+
+        if (!window.confirm('本当にこのワークスペースを削除しますか？\n関連するカテゴリーもすべて削除されます。\nこの操作は元に戻せません。')) {
+            return
+        }
+
+        try {
+            console.log(`ワークスペース「${workspaceToDelete.name}」を削除開始...`)
+            
+            // ワークスペースを削除（CASCADE DELETEにより関連カテゴリーも自動削除される）
+            const { error: workspaceError } = await supabase
+                .from('workspaces')
+                .delete()
+                .eq('slug', slug)
+            
+            if (workspaceError) {
+                console.error('ワークスペース削除エラー:', workspaceError)
+                alert(`ワークスペース削除エラー: ${workspaceError.message}`)
+                return
+            }
+            
+            console.log('ワークスペースとその関連カテゴリーを削除しました')
+            
+            // 削除したワークスペースがアクティブだった場合の処理
+            if (workspaceToDelete.is_active && workspaces.length > 1) {
+                // 他のワークスペースを見つけてアクティブにする
+                const remainingWorkspaces = workspaces.filter(w => w.id !== workspaceToDelete.id)
+                if (remainingWorkspaces.length > 0) {
+                    const newActiveWorkspace = remainingWorkspaces[0]
+                    await supabase
+                        .from('workspaces')
+                        .update({ is_active: true })
+                        .eq('id', newActiveWorkspace.id)
+                    
+                    console.log(`新しいアクティブワークスペース: ${newActiveWorkspace.name}`)
+                    // 新しいアクティブワークスペースに遷移
+                    router.push(`/workspace/${newActiveWorkspace.slug}`)
+                    return
+                }
+            }
+            
+            // 画面更新
+            router.refresh()
+            
+        } catch (error) {
+            console.error('削除処理でエラーが発生しました:', error)
+            alert(`削除処理でエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        }
     }
 
     return (

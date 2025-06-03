@@ -26,6 +26,17 @@ type Workspace = {
     slug: string
 }
 
+type Category = {
+    id: string
+    workspace_id: string
+    name: string
+    slug: string
+    icon: string
+    order: number
+    parent_id: string | null
+    created_at: string
+}
+
 export default async function WorkspacePage({ params }: { params: Promise<{ name: string }> }) {
     console.log('=== PARAMS DEBUG ===');
     console.log('Raw params:', params);
@@ -124,12 +135,29 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
 
     console.log('categories', categories)
 
+    // カテゴリーデータを型安全に整形
+    const categoriesData: Category[] = (categories ?? []).map((category) => ({
+        id: category.id,
+        workspace_id: category.workspace_id,
+        name: category.name,
+        slug: category.slug,
+        icon: category.icon,
+        order: category.order,
+        parent_id: category.parent_id,
+        created_at: category.created_at,
+    }))
+
     return (
 
         <SidebarProvider className="flex flex-col">
             <SiteHeader />
             <div className="flex flex-1">
-                <AppSidebar userProfile={userProfile} workspaces={workspaces} />
+                <AppSidebar 
+                    userProfile={userProfile} 
+                    workspaces={workspaces} 
+                    categories={categoriesData}
+                    currentWorkspace={targetWorkspace}
+                />
                 <SidebarInset>
                     <div className="flex flex-1 flex-col gap-4 p-4">
                         {(!categories || categories.length === 0) ? (

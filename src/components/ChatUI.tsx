@@ -2,15 +2,26 @@
 import { useRef, useEffect, useState } from "react"
 import { useChat } from '@ai-sdk/react';
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { CategoryIconMap } from "./nav/category-icons"
 
-export default function ChatUI({ workspaceName, workspaceId }: { workspaceName: string, workspaceId: string }) {
+// 型定義を追加
+type WorkspaceInfo = {
+    workspaceName: string
+    workspaceId: string
+}
+
+export function ChatUI({ workspaceInfo }: { workspaceInfo: WorkspaceInfo }) {
+    const [initialized, setInitialized] = useState(false)
+    const [selectedCategories, setSelectedCategories] = useState<Array<{ name: string, slug: string, icon: string }>>([])
+    const [isRegistering, setIsRegistering] = useState(false)
     const bottomRef = useRef<HTMLDivElement>(null)
 
+    const supabase = createClient()
+
     // propsのデバッグ
-    console.log('ChatUI props:', { workspaceName, workspaceId });
-    console.log('workspaceId type:', typeof workspaceId);
-    console.log('workspaceId length:', workspaceId?.length);
+    console.log('ChatUI props:', { workspaceInfo });
+    console.log('workspaceId type:', typeof workspaceInfo.workspaceId);
+    console.log('workspaceId length:', workspaceInfo.workspaceId?.length);
 
     const { messages, input, handleSubmit, setInput } = useChat({
         api: "/api/chat",
@@ -22,25 +33,18 @@ export default function ChatUI({ workspaceName, workspaceId }: { workspaceName: 
         }
     })
 
-    const [initialized, setInitialized] = useState(false)
-    const [selectedCategories, setSelectedCategories] = useState<Array<{ name: string, slug: string }>>([])
-    const [isRegistering, setIsRegistering] = useState(false)
-
-    const router = useRouter()
-    const supabase = createClient()
-
     useEffect(() => {
         if (!initialized && Array.isArray(messages) && messages.length === 0) {
-            setInput(workspaceName);
+            setInput(workspaceInfo.workspaceName);
             setInitialized(true);
         }
-    }, [messages, initialized, setInput, workspaceName]);
+    }, [messages, initialized, setInput, workspaceInfo.workspaceName]);
 
     useEffect(() => {
-        if (initialized && input === workspaceName && messages.length === 0) {
+        if (initialized && input === workspaceInfo.workspaceName && messages.length === 0) {
             handleSubmit();
         }
-    }, [input, initialized, messages, handleSubmit, workspaceName]);
+    }, [input, initialized, messages, handleSubmit, workspaceInfo.workspaceName]);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -55,7 +59,7 @@ export default function ChatUI({ workspaceName, workspaceId }: { workspaceName: 
         setInput(value);
     }
 
-    const handleCategoryToggle = (category: { name: string, slug: string }) => {
+    const handleCategoryToggle = (category: { name: string, slug: string, icon: string }) => {
         setSelectedCategories(prev =>
             prev.find(c => c.name === category.name)
                 ? prev.filter(c => c.name !== category.name)
@@ -67,13 +71,13 @@ export default function ChatUI({ workspaceName, workspaceId }: { workspaceName: 
         if (selectedCategories.length === 0) return;
 
         console.log('=== Registration Debug ===');
-        console.log('workspaceId:', workspaceId);
-        console.log('workspaceId type:', typeof workspaceId);
-        console.log('workspaceId valid:', !!workspaceId);
+        console.log('workspaceId:', workspaceInfo.workspaceId);
+        console.log('workspaceId type:', typeof workspaceInfo.workspaceId);
+        console.log('workspaceId valid:', !!workspaceInfo.workspaceId);
 
-        if (!workspaceId || workspaceId === 'undefined' || workspaceId === 'null') {
+        if (!workspaceInfo.workspaceId || workspaceInfo.workspaceId === 'undefined' || workspaceInfo.workspaceId === 'null') {
             alert('ワークスペースIDが正しく設定されていません。');
-            console.error('Invalid workspaceId:', workspaceId);
+            console.error('Invalid workspaceId:', workspaceInfo.workspaceId);
             return;
         }
 
@@ -81,7 +85,7 @@ export default function ChatUI({ workspaceName, workspaceId }: { workspaceName: 
         try {
             console.log('Starting registration...');
             console.log('Selected categories:', selectedCategories);
-            console.log('Workspace ID:', workspaceId);
+            console.log('Workspace ID:', workspaceInfo.workspaceId);
 
             // 現在のユーザーを確認
             const { data: { user } } = await supabase.auth.getUser();
@@ -96,14 +100,14 @@ export default function ChatUI({ workspaceName, workspaceId }: { workspaceName: 
             const { data: existingCategories } = await supabase
                 .from('categories')
                 .select('name, slug')
-                .eq('workspace_id', workspaceId);
+                .eq('workspace_id', workspaceInfo.workspaceId);
 
             const existingNames = existingCategories?.map(c => c.name) || [];
             const existingSlugSet = new Set(existingCategories?.map(c => c.slug) || []);
             console.log('Existing categories:', existingNames);
             console.log('Existing slugs:', Array.from(existingSlugSet));
 
-            // カテゴリーデータを準備（AIが生成したslugを使用）
+            // カテゴリーデータを準備（AIが生成したslugとアイコンを使用）
             const categoriesToInsert = [];
 
             for (const [index, category] of selectedCategories.entries()) {
@@ -129,9 +133,10 @@ export default function ChatUI({ workspaceName, workspaceId }: { workspaceName: 
                 console.log(`Final slug for "${category.name}": ${finalSlug}`);
 
                 const categoryData = {
-                    workspace_id: workspaceId,
+                    workspace_id: workspaceInfo.workspaceId,
                     name: category.name,
                     slug: finalSlug,
+                    icon: category.icon,
                     order: index,
                     parent_id: null
                 };
@@ -199,16 +204,20 @@ export default function ChatUI({ workspaceName, workspaceId }: { workspaceName: 
                                     return (
                                         <div key={toolInvocation.toolCallId} className="space-y-3">
                                             <div className="flex flex-wrap gap-2 mt-2">
-                                                {result.categories.map((category: { name: string, slug: string }) => (
-                                                    <button
-                                                        key={category.name}
-                                                        className={`px-3 py-1 rounded border ${selectedCategories.find(c => c.name === category.name) ? 'bg-primary text-white' : 'bg-muted'}`}
-                                                        onClick={() => handleCategoryToggle(category)}
-                                                        type="button"
-                                                    >
-                                                        {category.name} <span className="text-xs opacity-70">({category.slug})</span>
-                                                    </button>
-                                                ))}
+                                                {result.categories.map((category: { name: string, slug: string, icon: string }) => {
+                                                    const IconComponent = CategoryIconMap[category.icon as keyof typeof CategoryIconMap];
+                                                    return (
+                                                        <button
+                                                            key={category.name}
+                                                            className={`flex items-center gap-1 px-3 py-1 rounded border ${selectedCategories.find(c => c.name === category.name) ? 'bg-primary text-white' : 'bg-muted'}`}
+                                                            onClick={() => handleCategoryToggle(category)}
+                                                            type="button"
+                                                        >
+                                                            {IconComponent && <IconComponent className="w-4 h-4" />}
+                                                            {category.name} <span className="text-xs opacity-70">({category.slug})</span>
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                             {selectedCategories.length > 0 && (
                                                 <div className="flex items-center gap-2 pt-2 border-t">
@@ -256,3 +265,6 @@ export default function ChatUI({ workspaceName, workspaceId }: { workspaceName: 
         </div>
     )
 }
+
+// default exportを追加
+export default ChatUI

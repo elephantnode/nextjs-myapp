@@ -3,9 +3,7 @@ import { redirect } from 'next/navigation'
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { LogoutButton } from '@/components/logout-button'
 import { createClient } from '@/lib/supabase/server'
-import EmptyCategoryChatSection from '@/components/EmptyCategoryChatSection'
 
 type UserProfile = {
     id: string
@@ -53,26 +51,28 @@ export default async function WorkspaceTopPage({ params }: { params: Promise<{ n
         avatar: profile?.avatar_url ?? "",
     }
 
-    // ワークスペース情報を取得
-    const { data: workspacesData } = await supabase
+    // まず利用可能なワークスペースを取得
+    const { data: workspacesData, error: workspacesError } = await supabase
         .from('workspaces')
         .select('*')
         .eq('user_id', user.id)
         .order('order', { ascending: true })
 
-    // ワークスペース情報を整形
-    const workspaces: Workspace[] = (workspacesData ?? []).map((workspace) => ({
+    if (workspacesError) {
+        console.error('ワークスペース取得エラー:', workspacesError)
+        return <div>エラーが発生しました</div>
+    }
+
+    const workspaces: Workspace[] = (workspacesData || []).map((workspace) => ({
         id: workspace.id,
         name: workspace.name,
-        order: workspace.order,
+        slug: workspace.slug,
         icon: workspace.icon,
         status: workspace.status,
         is_active: workspace.is_active,
         user_id: workspace.user_id,
-        slug: workspace.slug,
+        order: workspace.order,
     }))
-
-    const activeWorkspace = workspaces.find((workspace) => workspace.is_active)
 
     // 表示中のワークスペース内カテゴリーを取得
     const { data: categories } = await supabase
