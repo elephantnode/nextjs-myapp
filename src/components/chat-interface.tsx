@@ -13,12 +13,14 @@ interface ChatInterfaceProps {
     workspaceId: string
     categoryId: string
     categoryName: string
+    onSave?: () => void
 }
 
 export function ChatInterface({ 
     workspaceId, 
     categoryId, 
-    categoryName
+    categoryName,
+    onSave
 }: ChatInterfaceProps) {
     const [input, setInput] = useState('')
     const [isLoading, setIsLoading] = useState(false)
@@ -36,9 +38,16 @@ export function ChatInterface({
             type: 'bookmark' | 'note'
         }
         tags: string[]
+        suggestedCategories?: Array<{
+            id: string
+            name: string
+            icon: string
+            confidence: number
+        }>
         message: string
     } | null>(null)
     const [selectedTags, setSelectedTags] = useState<string[]>([])
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categoryId)
     const [customTagInput, setCustomTagInput] = useState('')
     const [isSaving, setIsSaving] = useState(false)
     const [imageError, setImageError] = useState(false)
@@ -61,7 +70,8 @@ export function ChatInterface({
                 },
                 body: JSON.stringify({
                     messages: [{ role: 'user', content: input.trim() }],
-                    systemType: 'content_addition'
+                    systemType: 'content_addition',
+                    workspaceId: workspaceId
                 }),
             })
 
@@ -70,13 +80,19 @@ export function ChatInterface({
             }
 
             const responseText = await response.text()
-            console.log('Raw response:', responseText)
 
             try {
                 const data = JSON.parse(responseText)
                 setAiResponse(data)
                 // AI提案のタグを自動選択
                 setSelectedTags(data.tags || [])
+                
+                // AIが提案したカテゴリがある場合、最も信頼度の高いものを初期選択
+                if (data.suggestedCategories && data.suggestedCategories.length > 0) {
+                    // 信頼度でソートして最も高いものを選択
+                    const bestCategory = data.suggestedCategories.sort((a: any, b: any) => b.confidence - a.confidence)[0]
+                    setSelectedCategoryId(bestCategory.id)
+                }
             } catch (parseError) {
                 console.error('JSON parse error:', parseError)
                 throw new Error('Invalid JSON response')
@@ -118,20 +134,16 @@ export function ChatInterface({
     }
 
     // コンテンツの保存
-    const saveContent = async () => {
+    const handleSave = async () => {
         if (!aiResponse?.content) return
 
         setIsSaving(true)
         try {
-            // アイテムを保存
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) throw new Error('User not authenticated')
-
             const finalTags = selectedTags
             
             const itemData = {
                 workspace_id: workspaceId,
-                category_id: categoryId,
+                category_id: selectedCategoryId,
                 type: aiResponse.content.type,
                 title: aiResponse.content.title,
                 content: aiResponse.content.content || null,
@@ -140,20 +152,37 @@ export function ChatInterface({
                 site_description: aiResponse.content.site_description || null,
                 site_image_url: aiResponse.content.site_image_url || null,
                 site_name: aiResponse.content.site_name || null,
-                order: 0,
-                status: 'active' as const
+                order: 0
             }
 
-            const { data: item, error: itemError } = await supabase
-                .from('items')
-                .insert(itemData)
-                .select()
-                .single()
+            console.log('アイテム保存データ:', itemData)
 
-            if (itemError) throw itemError
+            // APIエンドポイントを使用してアイテムを作成（embedding生成含む）
+            const response = await fetch('/api/items', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(itemData)
+            })
+
+            if (!response.ok) {
+                throw new Error('アイテムの作成に失敗しました')
+            }
+
+            const result = await response.json()
+            console.log('アイテム作成結果:', result)
+
+            if (!result.success) {
+                throw new Error(result.error || 'アイテムの作成に失敗しました')
+            }
+
+            const item = result.item
 
             // タグを保存
             if (finalTags.length > 0) {
+                const supabase = createClient()
+                
                 // 既存のタグを確認/作成
                 const tagPromises = finalTags.map(async (tagName) => {
                     const { data: existingTag } = await supabase
@@ -199,15 +228,24 @@ export function ChatInterface({
             setInput('')
             setAiResponse(null)
             setSelectedTags([])
+            setSelectedCategoryId(categoryId)
             setCustomTagInput('')
             setImageError(false)
             
             router.refresh()
             
-            alert('コンテンツを保存しました！')
+            const message = result.hasEmbedding 
+                ? 'コンテンツを保存しました！（ベクトル検索対応済み）'
+                : 'コンテンツを保存しました！（ベクトル生成は失敗しましたが、キーワード検索は利用可能です）'
+            
+            alert(message)
+            
+            // ドロワーを閉じる
+            onSave?.()
+
         } catch (error) {
             console.error('Save error:', error)
-            alert('コンテンツの保存中にエラーが発生しました')
+            alert('保存中にエラーが発生しました: ' + (error as Error).message)
         } finally {
             setIsSaving(false)
         }
@@ -371,11 +409,42 @@ export function ChatInterface({
                                                 </Button>
                                             </div>
                                         </div>
+                                        
+                                        {/* AIカテゴリ提案 */}
+                                        {aiResponse.suggestedCategories && aiResponse.suggestedCategories.length > 0 && (
+                                            <div>
+                                                <p className="text-sm font-medium mb-3 text-blue-900">AIが提案するカテゴリ:</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {aiResponse.suggestedCategories.map((category) => (
+                                                        <Button
+                                                            key={category.id}
+                                                            variant={selectedCategoryId === category.id ? "default" : "outline"}
+                                                            size="sm"
+                                                            className={`transition-all ${
+                                                                selectedCategoryId === category.id 
+                                                                    ? 'bg-green-600 text-white' 
+                                                                    : 'border-green-300 text-green-700 hover:bg-green-50'
+                                                            }`}
+                                                            onClick={() => setSelectedCategoryId(category.id)}
+                                                        >
+                                                            {selectedCategoryId === category.id && <Check className="w-3 h-3 mr-1" />}
+                                                            {category.name}
+                                                            <span className="ml-1 text-xs opacity-70">
+                                                                ({Math.round(category.confidence * 100)}%)
+                                                            </span>
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-2">
+                                                    現在選択中: <strong>{aiResponse.suggestedCategories.find(c => c.id === selectedCategoryId)?.name || categoryName}</strong>
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                     
                                     {/* アクションボタン */}
                                     <div className="flex gap-2 pt-4">
-                                        <Button onClick={saveContent} disabled={isSaving} className="flex-1">
+                                        <Button onClick={handleSave} disabled={isSaving} className="flex-1">
                                             {isSaving ? (
                                                 <>
                                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -384,7 +453,7 @@ export function ChatInterface({
                                             ) : (
                                                 <>
                                                     <Plus className="w-4 h-4 mr-2" />
-                                                    {categoryName}に追加
+                                                    {aiResponse.suggestedCategories?.find(c => c.id === selectedCategoryId)?.name || categoryName}に追加
                                                 </>
                                             )}
                                         </Button>
@@ -394,6 +463,7 @@ export function ChatInterface({
                                                 setInput('')
                                                 setAiResponse(null)
                                                 setSelectedTags([])
+                                                setSelectedCategoryId(categoryId)
                                                 setCustomTagInput('')
                                                 setImageError(false)
                                             }}

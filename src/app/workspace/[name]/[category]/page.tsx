@@ -270,7 +270,10 @@ export default async function CategoryPage({
 
     return (
         <SidebarProvider className="flex flex-col">
-            <SiteHeader />
+            <SiteHeader 
+                workspaceId={currentWorkspace.id}
+                workspaceName={currentWorkspace.name}
+            />
             <DnDWrapper allCategories={allCategories}>
                 <div className="flex flex-1">
                     <AppSidebar 

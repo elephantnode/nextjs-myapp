@@ -99,19 +99,38 @@ export function ItemEditForm({
     const handleSave = async () => {
         setIsSaving(true)
         try {
-            // アイテム更新
-            const { error: updateError } = await supabase
-                .from('items')
-                .update({
-                    title: formData.title,
-                    content: formData.content || null,
-                    url: formData.url || null,
-                    site_description: formData.site_description || null,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', item.id)
+            // APIエンドポイントを使用してアイテムを更新（embedding生成含む）
+            const updateData = {
+                id: item.id,
+                title: formData.title,
+                content: formData.content || null,
+                url: formData.url || null,
+                site_title: item.site_title,
+                site_description: formData.site_description || null,
+                site_image_url: item.site_image_url,
+                site_name: item.site_name
+            }
 
-            if (updateError) throw updateError
+            console.log('アイテム更新データ:', updateData)
+
+            const response = await fetch('/api/items', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updateData)
+            })
+
+            if (!response.ok) {
+                throw new Error('アイテムの更新に失敗しました')
+            }
+
+            const result = await response.json()
+            console.log('アイテム更新結果:', result)
+
+            if (!result.success) {
+                throw new Error(result.error || 'アイテムの更新に失敗しました')
+            }
 
             // 既存のタグ関連付けを削除
             const { error: deleteTagsError } = await supabase
@@ -163,13 +182,17 @@ export function ItemEditForm({
                 if (linkError) throw linkError
             }
 
-            alert('アイテムを更新しました！')
+            const message = result.hasEmbedding 
+                ? 'アイテムを更新しました！（ベクトル検索対応済み）'
+                : 'アイテムを更新しました！（ベクトル生成は失敗しましたが、キーワード検索は利用可能です）'
+            
+            alert(message)
             router.push(`/workspace/${workspaceSlug}/${categorySlug}`)
             router.refresh()
 
         } catch (error) {
             console.error('Save error:', error)
-            alert('保存中にエラーが発生しました')
+            alert('保存中にエラーが発生しました: ' + (error as Error).message)
         } finally {
             setIsSaving(false)
         }

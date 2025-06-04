@@ -10,7 +10,12 @@ type Props = {
 }
 
 export function SortableCategoryItem({ id, children, onEdit }: Props) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ 
+        id,
+        data: {
+            type: 'category',
+        }
+    })
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,

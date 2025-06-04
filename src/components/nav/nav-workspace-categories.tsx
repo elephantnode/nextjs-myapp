@@ -15,19 +15,11 @@ import {
 } from "@/components/ui/sidebar"
 import { SortableCategoryItem } from "@/components/ui/sortableCategoryItem"
 import { DroppableCategoryItem } from "@/components/droppable-category-item"
+import { SortableDroppableCategoryItem } from "@/components/ui/sortable-droppable-category-item"
 import { CategoryDialog } from "./category-dialog"
 import { CategoryFormValues } from "./category-form"
 import { CategoryIconMap } from "./category-icons"
 import {
-    DndContext,
-    closestCenter,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragEndEvent,
-} from '@dnd-kit/core'
-import {
-    arrayMove,
     SortableContext,
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
@@ -75,40 +67,19 @@ export function NavWorkspaceCategories({
     const [editTarget, setEditTarget] = useState<Category | null>(null)
     const [isDndEnabled, setIsDndEnabled] = useState(false)
     
-    const sensors = useSensors(useSensor(PointerSensor))
-    
     useEffect(() => {
         setCategories(initialCategories)
         setItems(initialCategories.map(c => c.id))
     }, [initialCategories])
 
     // クライアントサイドでのみDnD機能を有効化（Hydrationエラー回避）
+    // アイテムドロップモードでもカテゴリー並び替えは有効にする
     useEffect(() => {
         setIsDndEnabled(true)
     }, [])
     
     if (!currentWorkspace) {
         return null
-    }
-
-    // 並べ替え確定時の処理（カテゴリーの順序変更）
-    const handleDragEnd = async (event: DragEndEvent) => {
-        const { active, over } = event
-        if (!over || active.id === over.id) return
-        
-        const oldIndex = items.indexOf(active.id as string)
-        const newIndex = items.indexOf(over.id as string)
-        const newItems = arrayMove(items, oldIndex, newIndex)
-        setItems(newItems)
-        
-        // 並び順をSupabaseに保存
-        for (let i = 0; i < newItems.length; i++) {
-            await supabase.from('categories').update({ order: i }).eq('id', newItems[i])
-        }
-        
-        // ローカルの順序も更新
-        const newCategories = arrayMove(categories, oldIndex, newIndex)
-        setCategories(newCategories)
     }
 
     // 編集ボタン用
@@ -149,12 +120,81 @@ export function NavWorkspaceCategories({
     }
 
     const handleDeleteCategory = async (slug: string) => {
-        if (!window.confirm('本当にこのカテゴリーを削除しますか？この操作は元に戻せません。')) {
+        // より詳細な削除確認
+        const confirmMessage = `本当にこのカテゴリーを削除しますか？
+
+⚠️ 注意：
+・このカテゴリーに属するすべてのアイテムも削除されます
+・削除されたデータは復元できません
+・この操作は元に戻せません
+
+削除を続行しますか？`
+
+        if (!window.confirm(confirmMessage)) {
             return
         }
-        await supabase.from('categories').delete().eq('slug', slug).eq('workspace_id', currentWorkspace.id)
-        setDialogOpen(false)
-        router.refresh()
+        
+        try {
+            // 削除するカテゴリーを取得
+            const { data: categoryToDelete } = await supabase
+                .from('categories')
+                .select('id, name')
+                .eq('slug', slug)
+                .eq('workspace_id', currentWorkspace.id)
+                .single()
+
+            if (!categoryToDelete) {
+                throw new Error('削除対象のカテゴリーが見つかりません')
+            }
+
+            // そのカテゴリーに属するアイテムをソフトデリート
+            const { error: itemsError } = await supabase
+                .from('items')
+                .update({
+                    status: 'trashed',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('category_id', categoryToDelete.id)
+                .eq('workspace_id', currentWorkspace.id)
+
+            if (itemsError) {
+                console.error('Error deleting items:', itemsError)
+                // アイテムの削除に失敗してもカテゴリーの削除は続行
+            }
+
+            // カテゴリーを削除
+            const { error } = await supabase
+                .from('categories')
+                .delete()
+                .eq('slug', slug)
+                .eq('workspace_id', currentWorkspace.id)
+                
+            if (error) throw error
+            
+            setDialogOpen(false)
+            
+            // 現在表示中のカテゴリーが削除された場合のリダイレクト処理
+            const currentCategorySlug = params?.category as string
+            if (currentCategorySlug === slug) {
+                // 削除されたカテゴリーが現在表示中の場合
+                const remainingCategories = categories.filter(cat => cat.slug !== slug)
+                
+                if (remainingCategories.length > 0) {
+                    // 他のカテゴリーがある場合は最初のカテゴリーにリダイレクト
+                    const firstCategory = remainingCategories.sort((a, b) => a.order - b.order)[0]
+                    router.push(`/workspace/${currentWorkspace.slug}/${firstCategory.slug}`)
+                } else {
+                    // カテゴリーが残っていない場合はワークスペースのホームページにリダイレクト
+                    router.push(`/workspace/${currentWorkspace.slug}`)
+                }
+            } else {
+                // 削除されたカテゴリーが現在表示中でない場合は通常のリフレッシュ
+                router.refresh()
+            }
+        } catch (error) {
+            console.error('Error deleting category:', error)
+            alert('カテゴリーの削除中にエラーが発生しました')
+        }
     }
 
     // カテゴリーリストのレンダリング
@@ -164,20 +204,29 @@ export function NavWorkspaceCategories({
             const isActive = params?.category === category.slug
             const IconComponent = CategoryIconMap[category.icon as keyof typeof CategoryIconMap]
             
-            // アイテムドロップ対応版の場合
+            // アイテムドロップ対応版の場合でも、カテゴリー並び替えを有効にする
             if (enableItemDrop) {
                 return (
                     <SidebarMenuItem key={category.id}>
-                        <DroppableCategoryItem
-                            category={category}
-                            workspaceSlug={currentWorkspace.slug}
-                            isActive={isActive}
-                        />
+                        {isDndEnabled ? (
+                            <SortableDroppableCategoryItem
+                                category={category}
+                                workspaceSlug={currentWorkspace.slug}
+                                isActive={isActive}
+                                onEdit={() => handleEditCategory(category)}
+                            />
+                        ) : (
+                            <DroppableCategoryItem
+                                category={category}
+                                workspaceSlug={currentWorkspace.slug}
+                                isActive={isActive}
+                            />
+                        )}
                     </SidebarMenuItem>
                 )
             }
 
-            // 通常版（カテゴリー並び替え対応）
+            // 通常版（カテゴリー並び替えのみ）
             const categoryContent = (
                 <SidebarMenuButton asChild isActive={isActive}>
                     <Link href={categoryUrl}>
@@ -224,24 +273,13 @@ export function NavWorkspaceCategories({
             <SidebarGroup>
                 <SidebarGroupLabel>カテゴリー</SidebarGroupLabel>
                 <SidebarMenu>
-                    {enableItemDrop ? (
-                        // アイテムドロップ対応版では並び替えを無効化
-                        renderCategoryList()
+                    {/* SortableContextのみ使用、DnDContextは上位コンポーネントで提供 */}
+                    {isDndEnabled ? (
+                        <SortableContext items={items} strategy={verticalListSortingStrategy}>
+                            {renderCategoryList()}
+                        </SortableContext>
                     ) : (
-                        // 通常版では並び替え対応
-                        isDndEnabled ? (
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleDragEnd}
-                            >
-                                <SortableContext items={items} strategy={verticalListSortingStrategy}>
-                                    {renderCategoryList()}
-                                </SortableContext>
-                            </DndContext>
-                        ) : (
-                            renderCategoryList()
-                        )
+                        renderCategoryList()
                     )}
                     
                     {/* 新規追加ボタン */}

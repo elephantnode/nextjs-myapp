@@ -1,12 +1,14 @@
 "use client"
 
-import { ReactNode, useState } from 'react'
+import { ReactNode, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { DragEndEvent } from '@dnd-kit/core'
+import { arrayMove } from '@dnd-kit/sortable'
 import { DnDProvider } from '@/components/dnd-provider'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { CheckCircle2, AlertCircle, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase/client'
 
 type Category = {
     id: string
@@ -39,25 +41,37 @@ type Item = {
 }
 
 type NotificationState = {
-    show: boolean
     type: 'success' | 'error'
     title: string
-    description?: string
+    message: string
+    timeout?: number
 } | null
 
 interface DnDWrapperProps {
     children: ReactNode
     allCategories: Category[]
+    onCategoryReorder?: (categories: Category[]) => void
 }
 
-export function DnDWrapper({ children, allCategories }: DnDWrapperProps) {
+export function DnDWrapper({ children, allCategories, onCategoryReorder }: DnDWrapperProps) {
     const router = useRouter()
-    const [notification, setNotification] = useState<NotificationState>(null)
+    const [notification, setNotification] = useState<NotificationState | null>(null)
+    const [isMounted, setIsMounted] = useState(false)
+    const supabase = createClient()
 
-    const showNotification = (type: 'success' | 'error', title: string, description?: string) => {
-        setNotification({ show: true, type, title, description })
-        
-        // 5秒後に自動で非表示
+    // ハイドレーションエラーを防ぐため、クライアントサイドでのみDnDを有効化
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
+
+    const showNotification = (type: 'success' | 'error', title: string, message?: string) => {
+        setNotification({
+            type,
+            title,
+            message: message || '',
+        })
+
+        // 5秒後に自動で通知を非表示にする
         setTimeout(() => {
             setNotification(null)
         }, 5000)
@@ -71,6 +85,45 @@ export function DnDWrapper({ children, allCategories }: DnDWrapperProps) {
         const { active, over } = event
 
         if (!over) return
+
+        // カテゴリーの並び替えの場合
+        if (
+            active.data.current?.type === 'category' && 
+            over.data.current?.type === 'category' &&
+            active.id !== over.id
+        ) {
+            const categoryIds = allCategories.map(c => c.id)
+            const oldIndex = categoryIds.indexOf(active.id as string)
+            const newIndex = categoryIds.indexOf(over.id as string)
+            
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const newCategoryIds = arrayMove(categoryIds, oldIndex, newIndex)
+                const newCategories = arrayMove(allCategories, oldIndex, newIndex)
+                
+                try {
+                    // 並び順をSupabaseに保存
+                    for (let i = 0; i < newCategoryIds.length; i++) {
+                        await supabase.from('categories').update({ order: i }).eq('id', newCategoryIds[i])
+                    }
+                    
+                    // 親コンポーネントに通知（オプション）
+                    if (onCategoryReorder) {
+                        onCategoryReorder(newCategories)
+                    }
+                    
+                    // ページをリフレッシュして最新データを取得
+                    router.refresh()
+                } catch (error) {
+                    console.error('Error reordering categories:', error)
+                    showNotification(
+                        'error',
+                        'カテゴリーの並び替えに失敗しました',
+                        'ネットワークエラーが発生しました。もう一度お試しください。'
+                    )
+                }
+            }
+            return
+        }
 
         // アイテムがカテゴリーにドロップされた場合
         if (
@@ -125,6 +178,11 @@ export function DnDWrapper({ children, allCategories }: DnDWrapperProps) {
         }
     }
 
+    // ハイドレーション前は通常のコンテンツのみ表示
+    if (!isMounted) {
+        return <>{children}</>
+    }
+
     return (
         <DnDProvider onDragEnd={handleDragEnd}>
             <div className="relative">
@@ -153,9 +211,9 @@ export function DnDWrapper({ children, allCategories }: DnDWrapperProps) {
                                     <X className="h-4 w-4" />
                                 </Button>
                             </AlertTitle>
-                            {notification.description && (
+                            {notification.message && (
                                 <AlertDescription>
-                                    {notification.description}
+                                    {notification.message}
                                 </AlertDescription>
                             )}
                         </Alert>

@@ -1,9 +1,8 @@
 "use client"
 import ChatUI from "./ChatUI"
 
-export default function EmptyCategoryChatSection({ workspaceName, workspaceId }: { workspaceName: string; workspaceId: string }) {
-    console.log('EmptyCategoryChatSection props:', { workspaceName, workspaceId });
-    console.log('workspaceId:', workspaceId);
+export default function EmptyCategoryChatSection({ workspaceName, workspaceId }: { workspaceName: string, workspaceId: string }) {
+    const workspaceInfo = { workspaceName, workspaceId }
     
-    return <ChatUI workspaceInfo={{ workspaceName, workspaceId }} />
+    return <ChatUI workspaceInfo={workspaceInfo} />
 } 

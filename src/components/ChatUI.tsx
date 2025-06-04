@@ -12,16 +12,10 @@ type WorkspaceInfo = {
 
 export function ChatUI({ workspaceInfo }: { workspaceInfo: WorkspaceInfo }) {
     const [initialized, setInitialized] = useState(false)
-    const [selectedCategories, setSelectedCategories] = useState<Array<{ name: string, slug: string, icon: string }>>([])
-    const [isRegistering, setIsRegistering] = useState(false)
+    const [selectedCategories, setSelectedCategories] = useState<Array<{ name: string, slug: string, icon: string, order?: number }>>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [isRegistered, setIsRegistered] = useState(false)
     const bottomRef = useRef<HTMLDivElement>(null)
-
-    const supabase = createClient()
-
-    // propsのデバッグ
-    console.log('ChatUI props:', { workspaceInfo });
-    console.log('workspaceId type:', typeof workspaceInfo.workspaceId);
-    console.log('workspaceId length:', workspaceInfo.workspaceId?.length);
 
     const { messages, input, handleSubmit, setInput } = useChat({
         api: "/api/chat",
@@ -67,121 +61,107 @@ export function ChatUI({ workspaceInfo }: { workspaceInfo: WorkspaceInfo }) {
         );
     };
 
-    const handleRegisterCategories = async () => {
-        if (selectedCategories.length === 0) return;
-
-        console.log('=== Registration Debug ===');
-        console.log('workspaceId:', workspaceInfo.workspaceId);
-        console.log('workspaceId type:', typeof workspaceInfo.workspaceId);
-        console.log('workspaceId valid:', !!workspaceInfo.workspaceId);
-
-        if (!workspaceInfo.workspaceId || workspaceInfo.workspaceId === 'undefined' || workspaceInfo.workspaceId === 'null') {
-            alert('ワークスペースIDが正しく設定されていません。');
-            console.error('Invalid workspaceId:', workspaceInfo.workspaceId);
-            return;
+    const handleRegistration = async () => {
+        setIsLoading(true)
+        
+        const supabase = createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        
+        if (authError || !user) {
+            alert('認証エラー: ログインしてください')
+            setIsLoading(false)
+            return
         }
 
-        setIsRegistering(true);
         try {
-            console.log('Starting registration...');
-            console.log('Selected categories:', selectedCategories);
-            console.log('Workspace ID:', workspaceInfo.workspaceId);
-
-            // 現在のユーザーを確認
-            const { data: { user } } = await supabase.auth.getUser();
-            console.log('Current user:', user);
-
-            if (!user) {
-                alert('ユーザーが認証されていません。');
-                return;
-            }
-
-            // 既存のカテゴリー名とslugを確認
+            // 既存のカテゴリを取得
             const { data: existingCategories } = await supabase
                 .from('categories')
                 .select('name, slug')
-                .eq('workspace_id', workspaceInfo.workspaceId);
+                .eq('workspace_id', workspaceInfo.workspaceId)
 
-            const existingNames = existingCategories?.map(c => c.name) || [];
-            const existingSlugSet = new Set(existingCategories?.map(c => c.slug) || []);
-            console.log('Existing categories:', existingNames);
-            console.log('Existing slugs:', Array.from(existingSlugSet));
+            const existingNames = new Set(existingCategories?.map(cat => cat.name) || [])
+            const existingSlugSet = new Set(existingCategories?.map(cat => cat.slug) || [])
 
-            // カテゴリーデータを準備（AIが生成したslugとアイコンを使用）
-            const categoriesToInsert = [];
-
-            for (const [index, category] of selectedCategories.entries()) {
-                // 名前の重複チェック
-                if (existingNames.includes(category.name)) {
-                    console.log(`Skipping duplicate name: ${category.name}`);
-                    continue;
+            // 重複しないカテゴリをフィルタリング
+            const filteredCategories = selectedCategories.filter(category => {
+                if (existingNames.has(category.name)) {
+                    return false
                 }
+                return true
+            })
 
-                console.log('Processing category:', category);
-
-                // slug重複チェックと自動調整
-                let finalSlug = category.slug;
-                let counter = 1;
+            // slug の衝突を避ける
+            const categoriesToInsert = filteredCategories.map(category => {
+                // デバッグ用ログ
+                console.log('AI提案カテゴリー:', {
+                    name: category.name,
+                    originalSlug: category.slug,
+                    icon: category.icon
+                })
+                
+                // AIが提案したslugを使用、無効な場合のみフォールバック
+                let baseSlug = category.slug && category.slug !== '--' && category.slug.length > 0 
+                    ? category.slug 
+                    : category.name.toLowerCase().replace(/[ぁ-んァ-ヶー一-龯]/g, '').replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'category'
+                    
+                let finalSlug = baseSlug
+                let counter = 1
 
                 while (existingSlugSet.has(finalSlug)) {
-                    finalSlug = `${category.slug}-${counter}`;
-                    counter++;
-                    console.log(`Slug conflict, trying: ${finalSlug}`);
+                    finalSlug = `${baseSlug}-${counter}`
+                    counter++
                 }
-
-                existingSlugSet.add(finalSlug); // 今回のバッチでの重複も防止
-                console.log(`Final slug for "${category.name}": ${finalSlug}`);
+                
+                existingSlugSet.add(finalSlug)
+                
+                console.log('最終slug:', finalSlug)
 
                 const categoryData = {
                     workspace_id: workspaceInfo.workspaceId,
                     name: category.name,
                     slug: finalSlug,
                     icon: category.icon,
-                    order: index,
-                    parent_id: null
-                };
+                    order: category.order || 0,
+                    parent_id: null,
+                }
 
-                console.log('Category data:', categoryData);
-                categoriesToInsert.push(categoryData);
-            }
-
-            console.log('Categories to insert:', categoriesToInsert);
+                return categoryData
+            })
 
             if (categoriesToInsert.length === 0) {
-                alert('選択されたカテゴリーはすべて既に存在します。');
-                return;
+                alert('選択されたカテゴリはすべて既に存在します')
+                setIsLoading(false)
+                return
             }
 
-            // Supabaseにカテゴリーを一括挿入
+            // データベースに挿入
             const { data, error } = await supabase
                 .from('categories')
                 .insert(categoriesToInsert)
-                .select();
+                .select()
 
             if (error) {
-                console.error('Supabase insert error:', error);
-                alert(`カテゴリー登録エラー: ${error.message}`);
-                return;
+                throw error
             }
 
-            console.log('Successfully inserted categories:', data);
-
-            // 成功メッセージ
-            alert(`${categoriesToInsert.length}個のカテゴリーを登録しました！\nページをリロードして反映します。`);
-
-            // 選択状態をクリア
-            setSelectedCategories([]);
-
-            // ページをリロードして新しいカテゴリーを表示
-            window.location.reload();
-
+            // 登録成功時の処理
+            setIsRegistered(true)
+            
+            // 成功メッセージを表示
+            alert(`${categoriesToInsert.length}個のカテゴリーが正常に登録されました！`)
+            
+            // 少し待ってからページをリロード
+            setTimeout(() => {
+                window.location.reload()
+            }, 1000)
         } catch (error) {
-            console.error('エラー:', error);
-            alert(`エラーが発生しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error('カテゴリ登録エラー:', error)
+            alert('カテゴリの登録に失敗しました')
         } finally {
-            setIsRegistering(false);
+            setIsLoading(false)
         }
-    };
+    }
 
     return (
         <div className="flex flex-col h-[80vh] max-h-[600px] w-full border rounded-xl bg-background overflow-hidden shadow">
@@ -224,14 +204,22 @@ export function ChatUI({ workspaceInfo }: { workspaceInfo: WorkspaceInfo }) {
                                                     <span className="text-sm text-muted-foreground">
                                                         {selectedCategories.length}個選択中:
                                                     </span>
-                                                    <button
-                                                        className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 disabled:opacity-50"
-                                                        onClick={handleRegisterCategories}
-                                                        disabled={isRegistering}
-                                                        type="button"
-                                                    >
-                                                        {isRegistering ? '登録中...' : '選択したカテゴリーを登録'}
-                                                    </button>
+                                                    {!isRegistered ? (
+                                                        <button
+                                                            className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 disabled:opacity-50"
+                                                            onClick={handleRegistration}
+                                                            disabled={isLoading}
+                                                            type="button"
+                                                        >
+                                                            {isLoading ? '登録中...' : '選択したカテゴリーを登録'}
+                                                        </button>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="bg-green-100 text-green-800 px-4 py-2 rounded border border-green-300">
+                                                                ✓ 登録完了 - ページを更新中...
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

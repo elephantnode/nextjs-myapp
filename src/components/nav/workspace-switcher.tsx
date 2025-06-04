@@ -109,7 +109,7 @@ export function WorkspaceSwitcher({
     useEffect(() => {
         if (!workspaces || workspaces.length === 0) {
             setDialogOpen(true);
-        }
+    }
     }, [workspaces]);
 
     const IconComponent = activeWorkspace?.icon ? IconMap[activeWorkspace.icon as keyof typeof IconMap] : undefined;
@@ -189,43 +189,39 @@ export function WorkspaceSwitcher({
         }
 
         try {
-            console.log(`ワークスペース「${workspaceToDelete.name}」を削除開始...`)
-            
-            // ワークスペースを削除（CASCADE DELETEにより関連カテゴリーも自動削除される）
-            const { error: workspaceError } = await supabase
+            const { error } = await supabase
                 .from('workspaces')
                 .delete()
-                .eq('slug', slug)
+                .eq('id', workspaceToDelete.id)
+
+            if (error) throw error
+
+            // カテゴリーも削除
+            const { error: categoriesError } = await supabase
+                .from('categories')
+                .delete()
+                .eq('workspace_id', workspaceToDelete.id)
+
+            if (categoriesError) throw categoriesError
+
+            // 残りのワークスペースから新しいアクティブワークスペースを決定
+            const remainingWorkspaces = workspaces.filter(w => w.id !== workspaceToDelete.id)
             
-            if (workspaceError) {
-                console.error('ワークスペース削除エラー:', workspaceError)
-                alert(`ワークスペース削除エラー: ${workspaceError.message}`)
-                return
+            if (remainingWorkspaces.length > 0) {
+                const newActiveWorkspace = remainingWorkspaces[0]
+                
+                // 新しいアクティブワークスペースを設定
+                await supabase
+                    .from('workspaces')
+                    .update({ is_active: true })
+                    .eq('id', newActiveWorkspace.id)
+
+                // 新しいアクティブワークスペースにリダイレクト
+                router.push(`/workspace/${newActiveWorkspace.slug}`)
+            } else {
+                // ワークスペースが残っていない場合
+                router.push('/workspace')
             }
-            
-            console.log('ワークスペースとその関連カテゴリーを削除しました')
-            
-            // 削除したワークスペースがアクティブだった場合の処理
-            if (workspaceToDelete.is_active && workspaces.length > 1) {
-                // 他のワークスペースを見つけてアクティブにする
-                const remainingWorkspaces = workspaces.filter(w => w.id !== workspaceToDelete.id)
-                if (remainingWorkspaces.length > 0) {
-                    const newActiveWorkspace = remainingWorkspaces[0]
-                    await supabase
-                        .from('workspaces')
-                        .update({ is_active: true })
-                        .eq('id', newActiveWorkspace.id)
-                    
-                    console.log(`新しいアクティブワークスペース: ${newActiveWorkspace.name}`)
-                    // 新しいアクティブワークスペースに遷移
-                    router.push(`/workspace/${newActiveWorkspace.slug}`)
-                    return
-                }
-            }
-            
-            // 画面更新
-            router.refresh()
-            
         } catch (error) {
             console.error('削除処理でエラーが発生しました:', error)
             alert(`削除処理でエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -258,75 +254,75 @@ export function WorkspaceSwitcher({
                     </SidebarMenuItem>
                 </>
             ) : activeWorkspace ? (
-                <SidebarMenuItem>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <SidebarMenuButton
-                                size="lg"
-                                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                            >
-                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                                    {IconComponent && <IconComponent className="size-4" />}
-                                </div>
-                                <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-semibold">
-                                        {activeWorkspace.name}
-                                    </span>
-                                    <span className="truncate text-xs">{activeWorkspace.name}</span>
-                                </div>
-                                <ChevronsUpDown className="ml-auto" />
-                            </SidebarMenuButton>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                            align="start"
-                            side={isMobile ? "bottom" : "right"}
-                            sideOffset={4}
+            <SidebarMenuItem>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <SidebarMenuButton
+                            size="lg"
+                            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                         >
-                            <DropdownMenuLabel className="text-xs text-muted-foreground">
-                                Workspaces
-                            </DropdownMenuLabel>
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleDragEnd}
-                            >
-                                <SortableContext items={items} strategy={verticalListSortingStrategy}>
-                                    {items.map((id, index) => {
+                            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                                {IconComponent && <IconComponent className="size-4" />}
+                            </div>
+                            <div className="grid flex-1 text-left text-sm leading-tight">
+                                <span className="truncate font-semibold">
+                                        {activeWorkspace.name}
+                                </span>
+                                    <span className="truncate text-xs">{activeWorkspace.name}</span>
+                            </div>
+                            <ChevronsUpDown className="ml-auto" />
+                        </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                        align="start"
+                        side={isMobile ? "bottom" : "right"}
+                        sideOffset={4}
+                    >
+                        <DropdownMenuLabel className="text-xs text-muted-foreground">
+                            Workspaces
+                        </DropdownMenuLabel>
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <SortableContext items={items} strategy={verticalListSortingStrategy}>
+                                {items.map((id, index) => {
                                         const workspace = workspaces.find(w => w.id === id);
                                         if (!workspace) return null;
-                                        const WorkspaceIcon = workspace.icon ? IconMap[workspace.icon as keyof typeof IconMap] : undefined;
-                                        return (
-                                            <SortableWorkspaceItem
-                                                key={id}
-                                                id={id}
-                                                onEdit={() => handleEditWorkspace(workspace)}
+                                    const WorkspaceIcon = workspace.icon ? IconMap[workspace.icon as keyof typeof IconMap] : undefined;
+                                    return (
+                                        <SortableWorkspaceItem
+                                            key={id}
+                                            id={id}
+                                            onEdit={() => handleEditWorkspace(workspace)}
+                                        >
+                                            <DropdownMenuItem
+                                                onClick={() => handleWorkspaceSwitch(workspace)}
+                                                className="gap-2 p-2"
                                             >
-                                                <DropdownMenuItem
-                                                    onClick={() => handleWorkspaceSwitch(workspace)}
-                                                    className="gap-2 p-2"
-                                                >
-                                                    <div className="flex size-6 items-center justify-center rounded-sm border">
-                                                        {WorkspaceIcon && <WorkspaceIcon className="size-4 shrink-0" />}
-                                                    </div>
-                                                    {workspace.name}
-                                                    <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
-                                                </DropdownMenuItem>
-                                            </SortableWorkspaceItem>
-                                        );
-                                    })}
-                                </SortableContext>
-                            </DndContext>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="gap-2 p-2" onClick={handleAddWorkspace}>
-                                <div className="flex size-6 items-center justify-center rounded-md border bg-background">
-                                    <Plus className="size-4" />
-                                </div>
-                                <div className="font-medium text-muted-foreground">Add Workspace</div>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </SidebarMenuItem>
+                                                <div className="flex size-6 items-center justify-center rounded-sm border">
+                                                    {WorkspaceIcon && <WorkspaceIcon className="size-4 shrink-0" />}
+                                                </div>
+                                                {workspace.name}
+                                                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
+                                            </DropdownMenuItem>
+                                        </SortableWorkspaceItem>
+                                    );
+                                })}
+                            </SortableContext>
+                        </DndContext>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="gap-2 p-2" onClick={handleAddWorkspace}>
+                            <div className="flex size-6 items-center justify-center rounded-md border bg-background">
+                                <Plus className="size-4" />
+                            </div>
+                            <div className="font-medium text-muted-foreground">Add Workspace</div>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </SidebarMenuItem>
             ) : null}
             <WorkspaceDialog
                 open={dialogOpen}

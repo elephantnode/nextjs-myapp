@@ -12,21 +12,26 @@ import {
 } from "@/components/ui/drawer"
 import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
-import { ChatInterface } from "@/components/chat-interface"
+import { WorkspaceChatInterface } from "@/components/workspace-chat-interface"
 
-interface ChatDrawerProps {
+interface WorkspaceChatDrawerProps {
     workspaceId: string
-    categoryName: string
-    categoryId: string
+    workspaceName: string
+    categories: Array<{
+        id: string
+        name: string
+        slug: string
+        icon: string
+    }>
     children: React.ReactNode
 }
 
-export function ChatDrawer({
+export function WorkspaceChatDrawer({
     workspaceId,
-    categoryName,
-    categoryId,
+    workspaceName,
+    categories,
     children
-}: ChatDrawerProps) {
+}: WorkspaceChatDrawerProps) {
     const [open, setOpen] = useState(false)
 
     return (
@@ -40,10 +45,10 @@ export function ChatDrawer({
                         <div className="flex items-center justify-between">
                             <div>
                                 <DrawerTitle className="text-left">
-                                    {categoryName} - コンテンツ追加
+                                    {workspaceName} - コンテンツ追加
                                 </DrawerTitle>
                                 <DrawerDescription className="text-left">
-                                    URLを貼り付けるか、メモを入力してください。AIがタグを提案します。
+                                    URLを貼り付けるか、メモを入力してください。AIがカテゴリーとタグを提案します。
                                 </DrawerDescription>
                             </div>
                             <DrawerClose asChild>
@@ -56,10 +61,10 @@ export function ChatDrawer({
                     </DrawerHeader>
                     
                     <div className="px-4 pb-4 flex-1 overflow-hidden">
-                        <ChatInterface 
+                        <WorkspaceChatInterface 
                             workspaceId={workspaceId}
-                            categoryId={categoryId}
-                            categoryName={categoryName}
+                            workspaceName={workspaceName}
+                            categories={categories}
                             onSave={() => setOpen(false)}
                         />
                     </div>

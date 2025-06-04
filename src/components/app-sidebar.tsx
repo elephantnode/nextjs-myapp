@@ -1,13 +1,7 @@
 "use client"
 
-import {
-  LifeBuoy,
-  Send,
-} from "lucide-react"
-
 import { WorkspaceSwitcher } from "@/components/nav/workspace-switcher"
 import { NavWorkspaceCategories } from "@/components/nav/nav-workspace-categories"
-import { NavSecondary } from "@/components/nav/nav-secondary"
 import { NavUser } from "@/components/nav/nav-user"
 import {
   Sidebar,
@@ -28,21 +22,6 @@ type Category = {
   order: number
   parent_id: string | null
   created_at: string
-}
-
-const data = {
-  navSecondary: [
-    {
-      title: "Support",
-      url: "#",
-      icon: LifeBuoy,
-    },
-    {
-      title: "Feedback",
-      url: "#",
-      icon: Send,
-    },
-  ],
 }
 
 export function AppSidebar({ 
@@ -72,7 +51,6 @@ export function AppSidebar({
           currentWorkspace={currentWorkspace}
           enableItemDrop={enableItemDrop}
         />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userProfile} />

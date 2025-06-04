@@ -3,9 +3,10 @@ import { redirect } from 'next/navigation'
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { LogoutButton } from '@/components/logout-button'
 import { createClient } from '@/lib/supabase/server'
 import EmptyCategoryChatSection from '@/components/EmptyCategoryChatSection'
+import { WorkspaceItemsList } from '@/components/workspace-items-list'
+import { FloatingChatButton } from '@/components/floating-chat-button'
 
 type UserProfile = {
     id: string
@@ -38,9 +39,6 @@ type Category = {
 }
 
 export default async function WorkspacePage({ params }: { params: Promise<{ name: string }> }) {
-    console.log('=== PARAMS DEBUG ===');
-    console.log('Raw params:', params);
-    
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -49,8 +47,6 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
     }
 
     const { name } = await params
-    console.log('Destructured name:', name);
-    console.log('Name type:', typeof name);
 
     //Profileからユーザー情報を取得
     // ここでprofilesテーブルから追加情報を取得
@@ -93,38 +89,17 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
         slug: workspace.slug,
     }))
 
-
     const activeWorkspace = workspaces.find((workspace) => workspace.is_active)
 
     // 現在表示中のワークスペース（URLのnameパラメータに対応）を取得
     const currentWorkspace = workspaces.find((workspace) => workspace.slug === name)
     
-    console.log('=== Server Side Debug ===');
-    console.log('URL name parameter:', name);
-    console.log('Available workspaces:', workspaces.map(w => ({ id: w.id, name: w.name, slug: w.slug })));
-    console.log('Raw workspaces data:', workspacesData);
-    console.log('Current workspace:', currentWorkspace);
-    console.log('Current workspace ID:', currentWorkspace?.id);
-    
     // フォールバック処理: currentWorkspaceが見つからない場合はactiveWorkspaceまたは最初のワークスペースを使用
     const targetWorkspace = currentWorkspace || activeWorkspace || workspaces[0];
     
     if (!targetWorkspace) {
-        console.error('No workspace found at all');
         redirect('/workspace')
     }
-    
-    console.log('Target workspace (fallback):', targetWorkspace);
-    console.log('Target workspace ID:', targetWorkspace.id);
-    
-    // デバッグ: targetWorkspaceを確認
-    console.log('=== FINAL DEBUG ===', {
-        targetWorkspace,
-        targetWorkspaceId: targetWorkspace.id,
-        targetWorkspaceKeys: Object.keys(targetWorkspace),
-        hasId: 'id' in targetWorkspace,
-        idValue: targetWorkspace.id
-    });
 
     // 表示中のワークスペース内カテゴリーを取得
     const { data: categories } = await supabase
@@ -132,8 +107,6 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
         .select('*')
         .eq('workspace_id', targetWorkspace.id)
         .order('order', { ascending: true })
-
-    console.log('categories', categories)
 
     // カテゴリーデータを型安全に整形
     const categoriesData: Category[] = (categories ?? []).map((category) => ({
@@ -147,10 +120,104 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
         created_at: category.created_at,
     }))
 
+    // 最新のアイテム30件を取得
+    const { data: recentItems } = await supabase
+        .from('items')
+        .select(`
+            *,
+            categories!inner(name, slug)
+        `)
+        .eq('workspace_id', targetWorkspace.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(30)
+
+    // 最新アイテムのタグ情報を取得
+    const recentItemIds = recentItems?.map(item => item.id) || []
+    const { data: recentItemTagsData } = await supabase
+        .from('item_tags')
+        .select(`
+            item_id,
+            tags!inner(id, name)
+        `)
+        .in('item_id', recentItemIds)
+
+    // 最新アイテム用のタグマッピングを作成
+    const recentTagsByItemId: Record<string, any[]> = {}
+    recentItemTagsData?.forEach((relation: any) => {
+        if (!recentTagsByItemId[relation.item_id]) {
+            recentTagsByItemId[relation.item_id] = []
+        }
+        recentTagsByItemId[relation.item_id].push({
+            id: relation.tags.id,
+            name: relation.tags.name
+        })
+    })
+
+    // タグ付きアイテムを取得
+    const { data: taggedItemsData } = await supabase
+        .from('item_tags')
+        .select(`
+            items!inner(*),
+            tags!inner(id, name)
+        `)
+        .eq('items.workspace_id', targetWorkspace.id)
+        .eq('items.status', 'active')
+        .order('items.created_at', { ascending: false })
+        .limit(50)
+
+    // タグ付きアイテムを整形
+    const taggedItems = taggedItemsData?.map((relation: any) => ({
+        ...relation.items,
+        tag: relation.tags
+    })) || []
+
+    // ワークスペース内の全タグを取得（使用回数付き）
+    const { data: allTagsData } = await supabase
+        .from('item_tags')
+        .select(`
+            tags!inner(id, name),
+            items!inner(id, workspace_id, status)
+        `)
+        .eq('items.workspace_id', targetWorkspace.id)
+        .eq('items.status', 'active')
+
+    // タグの使用回数を計算
+    const tagCounts: Record<string, number> = {}
+    allTagsData?.forEach((relation: any) => {
+        const tagName = relation.tags.name
+        tagCounts[tagName] = (tagCounts[tagName] || 0) + 1
+    })
+
+    // 最新アイテムにタグ情報を追加
+    const recentItemsWithTags = recentItems?.map((item: any) => ({
+        ...item,
+        tags: recentTagsByItemId[item.id] || []
+    })) || []
+
+    // 利用可能なタグリストを作成
+    const allTags = Array.from(new Set(Object.keys(tagCounts))).map((tagName, index) => ({
+        id: `tag-${index}`,
+        name: tagName,
+        count: tagCounts[tagName]
+    }))
+
+    // デバッグ用ログ
+    console.log('Debug info:', {
+        recentItemsCount: recentItemsWithTags.length,
+        taggedItemsCount: taggedItems.length,
+        allTagsCount: allTags.length,
+        allTagsData: allTagsData?.length || 0,
+        tagCounts
+    })
+
     return (
 
         <SidebarProvider className="flex flex-col">
-            <SiteHeader />
+            <SiteHeader 
+                workspaceId={targetWorkspace.id}
+                workspaceName={targetWorkspace.name}
+            />
             <div className="flex flex-1">
                 <AppSidebar 
                     userProfile={userProfile} 
@@ -166,25 +233,31 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
                                 workspaceId={targetWorkspace.id} 
                             />
                         ) : (
-                            <>
-                                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                                    <div className="aspect-video rounded-xl bg-muted/50" />
-                                    <div className="aspect-video rounded-xl bg-muted/50" />
-                                    <div className="aspect-video rounded-xl bg-muted/50" />
-                                </div>
-                                <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min" />
-                                <div className="flex h-svh w-full items-center justify-center gap-2">
-                                    <p>
-                                        Hello <span>{userProfile.email}</span>
-                                    </p>
-                                    <LogoutButton />
-                                </div>
-                            </>
+                            <WorkspaceItemsList
+                                recentItems={recentItemsWithTags}
+                                taggedItems={taggedItems}
+                                allTags={allTags}
+                                workspaceSlug={targetWorkspace.slug}
+                            />
                         )}
                     </div>
 
                 </SidebarInset>
             </div>
+            
+            {/* フローティングチャットボタン - カテゴリーがある場合のみ表示 */}
+            {categoriesData.length > 0 && (
+                <FloatingChatButton
+                    workspaceId={targetWorkspace.id}
+                    workspaceName={targetWorkspace.name}
+                    categories={categoriesData.map(cat => ({
+                        id: cat.id,
+                        name: cat.name,
+                        slug: cat.slug,
+                        icon: cat.icon
+                    }))}
+                />
+            )}
         </SidebarProvider>
 
     )

@@ -81,8 +81,6 @@ export default async function WorkspaceTopPage({ params }: { params: Promise<{ n
         .eq('workspace_id', name)
         .order('order', { ascending: true })
 
-    console.log('categories', categories)
-
     return (
 
         <SidebarProvider className="flex flex-col">
@@ -109,7 +107,7 @@ export default async function WorkspaceTopPage({ params }: { params: Promise<{ n
                                         利用可能なワークスペース: {workspaces.length}個
                                     </p>
                                 </div>
-                            )}
+                        )}
                         </div>
                     </div>
 

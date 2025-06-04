@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CategoryIconMap } from '@/components/nav/category-icons'
 import { Hash, Filter } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -8,6 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TagFilterSidebar } from '@/components/tag-filter-sidebar'
 import { DraggableItemCard } from '@/components/draggable-item-card'
+import { ItemListCompact } from '@/components/item-list-compact'
+import { ItemGridTile } from '@/components/item-grid-tile'
+import type { LayoutType } from '@/components/layout-selector'
 
 type Tag = {
     id: string
@@ -51,6 +54,7 @@ interface CategoryItemsListProps {
     workspaceName: string
     categorySlug: string
     category: Category
+    layout: LayoutType
 }
 
 export function CategoryItemsList({
@@ -58,19 +62,25 @@ export function CategoryItemsList({
     availableTags,
     workspaceName,
     categorySlug,
-    category
+    category,
+    layout
 }: CategoryItemsListProps) {
     const [selectedTags, setSelectedTags] = useState<string[]>([])
     const [isTagSidebarOpen, setIsTagSidebarOpen] = useState(false)
+    const [isMounted, setIsMounted] = useState(false)
 
-    // タグフィルタリング
-    const filteredItems = selectedTags.length === 0 
-        ? items 
-        : items.filter(item => 
-            selectedTags.every(selectedTag => 
-                item.tags.some(tag => tag.name === selectedTag)
-            )
+    // ハイドレーションエラーを防ぐため、クライアントサイドでのみDnDをレンダリング
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
+
+    // フィルター済みアイテム
+    const filteredItems = items.filter(item => {
+        if (selectedTags.length === 0) return true
+        return selectedTags.every(selectedTag => 
+            item.tags.some(itemTag => itemTag.name === selectedTag)
         )
+    })
 
     // タグ選択/解除のハンドラー
     const handleTagToggle = (tagName: string) => {
@@ -86,96 +96,156 @@ export function CategoryItemsList({
         setSelectedTags([])
     }
 
-    const IconComponent = CategoryIconMap[category.icon as keyof typeof CategoryIconMap] || Hash
+    // レイアウトに応じたグリッドクラスを取得
+    const getGridClass = () => {
+        switch (layout) {
+            case 'grid-3':
+                return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+            case 'grid-5':
+                return 'grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+            case 'list-compact':
+                return 'grid-cols-1'
+            case 'list-card':
+            default:
+                return 'grid-cols-1'
+        }
+    }
 
-    return (
-        <>
-            {/* フィルターヘッダー */}
-            <div className="flex items-center justify-between">
-                <div className="text-muted-foreground">
-                    {filteredItems.length} 個のアイテム
-                    {selectedTags.length > 0 && (
-                        <span className="ml-2">
-                            ({items.length} 件中)
-                        </span>
-                    )}
-                </div>
-                
-                {/* フィルターボタン */}
-                <div className="flex items-center gap-2">
-                    {selectedTags.length > 0 && (
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">フィルター:</span>
-                            <div className="flex gap-1">
-                                {selectedTags.slice(0, 2).map(tag => (
-                                    <Badge key={tag} variant="secondary" className="text-xs">
-                                        {tag}
-                                    </Badge>
-                                ))}
-                                {selectedTags.length > 2 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                        +{selectedTags.length - 2}
-                                    </Badge>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                    <Button
-                        variant={selectedTags.length > 0 ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setIsTagSidebarOpen(!isTagSidebarOpen)}
-                        className="flex items-center gap-2"
-                    >
-                        <Filter className="w-4 h-4" />
-                        タグフィルター
-                        {selectedTags.length > 0 && (
-                            <Badge variant="secondary" className="text-xs ml-1">
-                                {selectedTags.length}
-                            </Badge>
-                        )}
-                    </Button>
-                </div>
-            </div>
+    // アイテムをレンダリングする関数
+    const renderItems = () => {
+        if (filteredItems.length === 0) {
+            return (
+                <Card>
+                    <CardContent className="py-8 text-center">
+                        <p className="text-muted-foreground">
+                            {selectedTags.length > 0 
+                                ? 'フィルター条件に一致するアイテムがありません' 
+                                : 'まだアイテムがありません'
+                            }
+                        </p>
+                    </CardContent>
+                </Card>
+            )
+        }
 
-            {/* アイテム一覧 */}
-            <div className="grid gap-4">
-                {filteredItems.length === 0 ? (
-                    <Card>
-                        <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-                            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center mb-4">
-                                <IconComponent className="w-8 h-8 text-muted-foreground" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">
-                                {selectedTags.length > 0 
-                                    ? 'フィルター条件に一致するアイテムがありません'
-                                    : 'まだアイテムがありません'
-                                }
-                            </h3>
-                            <p className="text-muted-foreground mb-4">
-                                {selectedTags.length > 0 
-                                    ? 'フィルター条件を変更してみてください'
-                                    : '右下のボタンからURLやメモを追加してみましょう'
-                                }
-                            </p>
-                            {selectedTags.length > 0 && (
-                                <Button variant="outline" onClick={handleClearFilters}>
-                                    フィルターをクリア
-                                </Button>
-                            )}
-                        </CardContent>
-                    </Card>
-                ) : (
-                    filteredItems.map((item) => (
-                        <DraggableItemCard
-                            key={item.id}
+        if (!isMounted) {
+            // ハイドレーション前は静的な表示
+            return filteredItems.map((item) => (
+                <div key={item.id} className="h-32 bg-muted animate-pulse rounded-lg" />
+            ))
+        }
+
+        // レイアウトに応じてアイテムをレンダリング
+        return filteredItems.map((item) => {
+            const itemKey = item.id
+
+            switch (layout) {
+                case 'list-compact':
+                    return (
+                        <ItemListCompact
+                            key={itemKey}
                             item={item}
                             selectedTags={selectedTags}
                             onTagToggle={handleTagToggle}
                             workspaceName={workspaceName}
                             categorySlug={categorySlug}
                         />
-                    ))
+                    )
+                
+                case 'grid-3':
+                case 'grid-5':
+                    return (
+                        <ItemGridTile
+                            key={itemKey}
+                            item={item}
+                            selectedTags={selectedTags}
+                            onTagToggle={handleTagToggle}
+                            workspaceName={workspaceName}
+                            categorySlug={categorySlug}
+                        />
+                    )
+                
+                case 'list-card':
+                default:
+                    return (
+                        <DraggableItemCard
+                            key={itemKey}
+                            item={item}
+                            selectedTags={selectedTags}
+                            onTagToggle={handleTagToggle}
+                            workspaceName={workspaceName}
+                            categorySlug={categorySlug}
+                        />
+                    )
+            }
+        })
+    }
+
+    const IconComponent = CategoryIconMap[category.icon as keyof typeof CategoryIconMap] || Hash
+
+    return (
+        <>
+            {/* カテゴリー情報ヘッダー - カテゴリページから移動したので削除 */}
+
+            {/* 選択中タグの表示 */}
+            {selectedTags.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground">フィルター中:</span>
+                    {selectedTags.map((tag) => (
+                        <Badge 
+                            key={tag} 
+                            variant="default" 
+                            className="cursor-pointer hover:opacity-80"
+                            onClick={() => handleTagToggle(tag)}
+                        >
+                            {tag} ×
+                        </Badge>
+                    ))}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearFilters}
+                        className="text-xs h-6 px-2"
+                    >
+                        すべてクリア
+                    </Button>
+                </div>
+            )}
+
+            {/* フィルターコントロール */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    {/* アイテム数 */}
+                    <Badge variant="secondary">
+                        {selectedTags.length > 0 
+                            ? `${filteredItems.length} / ${items.length}` 
+                            : `${items.length}`
+                        } アイテム
+                    </Badge>
+                </div>
+
+                {/* タグフィルターボタン */}
+                {availableTags.length > 0 && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsTagSidebarOpen(true)}
+                        className="gap-2"
+                    >
+                        <Filter className="w-4 h-4" />
+                        タグフィルター
+                        {selectedTags.length > 0 && (
+                            <Badge variant="default" className="ml-1">
+                                {selectedTags.length}
+                            </Badge>
+                        )}
+                    </Button>
                 )}
+            </div>
+
+            {/* アイテムリスト */}
+            <div className={`grid gap-4 ${getGridClass()}`}>
+                {renderItems()}
             </div>
 
             {/* 右側タグフィルターサイドバー - レイアウト外に配置 */}

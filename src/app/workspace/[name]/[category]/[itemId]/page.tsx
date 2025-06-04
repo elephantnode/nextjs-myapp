@@ -214,7 +214,10 @@ export default async function ItemEditPage({
 
     return (
         <SidebarProvider className="flex flex-col">
-            <SiteHeader />
+            <SiteHeader 
+                workspaceId={currentWorkspace.id}
+                workspaceName={currentWorkspace.name}
+            />
             <div className="flex flex-1">
                 <AppSidebar 
                     userProfile={userProfile} 

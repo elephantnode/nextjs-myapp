@@ -1,8 +1,12 @@
 "use client"
 
+import { useState, useEffect } from 'react'
 import { CategoryIconMap } from '@/components/nav/category-icons'
-import { Hash } from 'lucide-react'
+import { Hash, Sparkles } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { CategoryItemsList } from '@/components/category-items-list'
+import { NewsModal } from '@/components/news-modal'
+import { LayoutSelector, type LayoutType } from '@/components/layout-selector'
 
 type Category = {
     id: string
@@ -55,7 +59,31 @@ export function CategoryPageClient({
     workspaceName,
     categorySlug
 }: CategoryPageClientProps) {
+    const [newsModalOpen, setNewsModalOpen] = useState(false)
+    const [currentLayout, setCurrentLayout] = useState<LayoutType>('list-card')
     const IconComponent = CategoryIconMap[category.icon as keyof typeof CategoryIconMap] || Hash
+
+    // ローカルストレージからレイアウト設定を復元
+    useEffect(() => {
+        const savedLayout = localStorage.getItem('category-layout')
+        if (savedLayout && ['list-compact', 'list-card', 'grid-3', 'grid-5'].includes(savedLayout)) {
+            setCurrentLayout(savedLayout as LayoutType)
+        }
+    }, [])
+
+    // レイアウト変更時にローカルストレージに保存
+    const handleLayoutChange = (layout: LayoutType) => {
+        setCurrentLayout(layout)
+        localStorage.setItem('category-layout', layout)
+    }
+
+    const handleNewsButtonClick = () => {
+        setNewsModalOpen(true)
+    }
+
+    const handleNewsModalChange = (open: boolean) => {
+        setNewsModalOpen(open)
+    }
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4">
@@ -74,6 +102,20 @@ export function CategoryPageClient({
                             </p>
                         </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                        <LayoutSelector 
+                            currentLayout={currentLayout}
+                            onLayoutChange={handleLayoutChange}
+                        />
+                        <Button
+                            onClick={handleNewsButtonClick}
+                            variant="outline"
+                            className="flex items-center gap-2"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            関連ニュース
+                        </Button>
+                    </div>
                 </div>
 
                 {/* アイテム一覧とフィルタリング機能 */}
@@ -83,8 +125,17 @@ export function CategoryPageClient({
                     workspaceName={workspaceName}
                     categorySlug={categorySlug}
                     category={category}
+                    layout={currentLayout}
                 />
             </div>
+
+            {/* ニュースモーダル */}
+            <NewsModal
+                open={newsModalOpen}
+                onOpenChange={handleNewsModalChange}
+                categoryId={category.id}
+                categoryName={category.name}
+            />
         </div>
     )
 } 
