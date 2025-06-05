@@ -6,10 +6,7 @@ import { z } from 'zod'
 import { generateQueryEmbedding } from '@/lib/embedding'
 import type { 
     SearchResult, 
-    SearchAnalysis, 
-    SearchDebugInfo, 
-    ItemWithTags, 
-    TagWithItems 
+    SearchAnalysis
 } from '@/types/database'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -45,11 +42,7 @@ export async function POST(request: NextRequest) {
         console.log('統合後の結果数:', combinedResults.length)
 
         // AI応答メッセージを生成
-        const aiMessage = generateIntelligentResponse(query, combinedResults, searchAnalysis, {
-            vectorCount: vectorResults.length,
-            keywordCount: keywordResults.length,
-            combinedCount: combinedResults.length
-        })
+        const aiMessage = generateIntelligentResponse(query, combinedResults, searchAnalysis)
 
         return NextResponse.json({
             success: true,
@@ -92,6 +85,7 @@ async function analyzeSearchQuery(query: string, workspaceId: string | undefined
             
             if (tagsData) {
                 const tagCounts = new Map<string, number>()
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 tagsData.forEach((relation: any) => {
                     const tagName = relation.tags.name
                     tagCounts.set(tagName, (tagCounts.get(tagName) || 0) + 1)
@@ -358,9 +352,11 @@ function combineSearchResults(vectorResults: SearchResult[], keywordResults: Sea
 }
 
 // アイテムにタグ情報を追加
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function addTagsToItems(supabase: SupabaseClient, items: any[]): Promise<SearchResult[]> {
     if (items.length === 0) return []
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const itemIds = items.map((item: any) => item.id)
     
     const { data: allItemTags } = await supabase
@@ -371,10 +367,13 @@ async function addTagsToItems(supabase: SupabaseClient, items: any[]): Promise<S
         `)
         .in('item_id', itemIds)
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return items.map((item: any) => ({
         ...item,
         tags: allItemTags
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ?.filter((itemTag: any) => itemTag.item_id === item.id)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .map((itemTag: any) => ({
                 id: itemTag.tags.id,
                 name: itemTag.tags.name
@@ -383,7 +382,7 @@ async function addTagsToItems(supabase: SupabaseClient, items: any[]): Promise<S
 }
 
 // AIによるインテリジェントな応答生成
-function generateIntelligentResponse(query: string, results: SearchResult[], analysis: SearchAnalysis, debug: SearchDebugInfo): string {
+function generateIntelligentResponse(query: string, results: SearchResult[], analysis: SearchAnalysis): string {
     const resultCount = results.length
     
     if (resultCount === 0) {

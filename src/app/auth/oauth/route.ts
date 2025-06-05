@@ -38,6 +38,8 @@ export async function GET(request: Request) {
               return NextResponse.redirect(`${origin}${workspaceUrl}`)
             } else if (forwardedHost) {
               return NextResponse.redirect(`https://${forwardedHost}${workspaceUrl}`)
+            } else if (next) {
+              return NextResponse.redirect(`${origin}${next}`)
             } else {
               return NextResponse.redirect(`${origin}${workspaceUrl}`)
             }

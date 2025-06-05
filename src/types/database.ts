@@ -127,6 +127,49 @@ export type TagWithItems = {
     }[]
 }
 
+// タグクエリ結果用の型
+export type TagQueryResult = {
+    tags: {
+        name: string
+    }
+    items: {
+        workspace_id: string
+    }
+}
+
+// アイテムタグクエリ結果用の型
+export type ItemTagQueryResult = {
+    item_id: string
+    tags: {
+        id: string
+        name: string
+    }
+}
+
+// 基本的なアイテム型（タグなし）
+export type BaseItem = {
+    id: string
+    workspace_id: string
+    category_id: string | null
+    type: 'bookmark' | 'note'
+    title: string
+    content: string | null
+    url: string | null
+    site_title: string | null
+    site_description: string | null
+    site_image_url: string | null
+    site_name: string | null
+    order: number
+    status: 'active' | 'trashed'
+    created_at: string
+    updated_at: string
+    similarity?: number
+    categories?: {
+        name: string
+        slug: string
+    }
+}
+
 // 検索結果用の型
 export type SearchResult = Item & {
     similarity?: number
