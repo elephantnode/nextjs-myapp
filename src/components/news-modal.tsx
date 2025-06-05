@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, ExternalLink, Calendar, Globe, Sparkles, X } from "lucide-react"
+import { Loader2, ExternalLink, Calendar, Globe, Sparkles } from "lucide-react"
 
 type NewsItem = {
     title: string

@@ -38,6 +38,34 @@ type Category = {
     created_at: string
 }
 
+type TagInfo = {
+    id: string
+    name: string
+}
+
+type ItemWithTags = {
+    id: string
+    workspace_id: string
+    category_id: string | null
+    type: 'bookmark' | 'note'
+    title: string
+    content: string | null
+    url: string | null
+    site_title: string | null
+    site_description: string | null
+    site_image_url: string | null
+    site_name: string | null
+    order: number
+    status: 'active' | 'trashed'
+    created_at: string
+    updated_at: string
+    tags: TagInfo[]
+    categories?: {
+        name: string
+        slug: string
+    }
+}
+
 export default async function WorkspacePage({ params }: { params: Promise<{ name: string }> }) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -143,7 +171,8 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
         .in('item_id', recentItemIds)
 
     // 最新アイテム用のタグマッピングを作成
-    const recentTagsByItemId: Record<string, any[]> = {}
+    const recentTagsByItemId: Record<string, TagInfo[]> = {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recentItemTagsData?.forEach((relation: any) => {
         if (!recentTagsByItemId[relation.item_id]) {
             recentTagsByItemId[relation.item_id] = []
@@ -167,6 +196,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
         .limit(50)
 
     // タグ付きアイテムを整形
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const taggedItems = taggedItemsData?.map((relation: any) => ({
         ...relation.items,
         tag: relation.tags
@@ -184,13 +214,15 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
 
     // タグの使用回数を計算
     const tagCounts: Record<string, number> = {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     allTagsData?.forEach((relation: any) => {
         const tagName = relation.tags.name
         tagCounts[tagName] = (tagCounts[tagName] || 0) + 1
     })
 
     // 最新アイテムにタグ情報を追加
-    const recentItemsWithTags = recentItems?.map((item: any) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recentItemsWithTags: ItemWithTags[] = recentItems?.map((item: any) => ({
         ...item,
         tags: recentTagsByItemId[item.id] || []
     })) || []

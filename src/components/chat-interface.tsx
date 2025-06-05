@@ -53,7 +53,7 @@ export function ChatInterface({
     const [imageError, setImageError] = useState(false)
     const bottomRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
-    const supabase = createClient()
+    // const supabase = createClient()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()

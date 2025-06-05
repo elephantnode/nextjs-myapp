@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,7 +24,7 @@ interface WorkspaceChatInterfaceProps {
 
 export function WorkspaceChatInterface({ 
     workspaceId, 
-    workspaceName,
+    // workspaceName,
     categories,
     onSave
 }: WorkspaceChatInterfaceProps) {
@@ -58,8 +58,8 @@ export function WorkspaceChatInterface({
     const [isSaving, setIsSaving] = useState(false)
     const [imageError, setImageError] = useState(false)
     const bottomRef = useRef<HTMLDivElement>(null)
-    const router = useRouter()
-    const supabase = createClient()
+    // const router = useRouter()
+    // const supabase = createClient()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
