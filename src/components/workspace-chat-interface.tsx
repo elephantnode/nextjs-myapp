@@ -8,7 +8,13 @@ import { Send, Loader2, Plus, Check, X, ExternalLink, Globe } from 'lucide-react
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useRouter } from 'next/navigation'
+
+type SuggestedCategory = {
+    id: string
+    name: string
+    icon: string
+    confidence: number
+}
 
 interface WorkspaceChatInterfaceProps {
     workspaceId: string
@@ -96,7 +102,7 @@ export function WorkspaceChatInterface({
                 // AIが提案したカテゴリがある場合、最も信頼度の高いものを初期選択
                 if (data.suggestedCategories && data.suggestedCategories.length > 0) {
                     // 信頼度でソートして最も高いものを選択
-                    const bestCategory = data.suggestedCategories.sort((a: any, b: any) => b.confidence - a.confidence)[0]
+                    const bestCategory = data.suggestedCategories.sort((a: SuggestedCategory, b: SuggestedCategory) => b.confidence - a.confidence)[0]
                     setSelectedCategoryId(bestCategory.id)
                 }
             } catch (parseError) {

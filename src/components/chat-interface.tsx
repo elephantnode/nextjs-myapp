@@ -9,6 +9,13 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
 
+type SuggestedCategory = {
+    id: string
+    name: string
+    icon: string
+    confidence: number
+}
+
 interface ChatInterfaceProps {
     workspaceId: string
     categoryId: string
@@ -38,12 +45,7 @@ export function ChatInterface({
             type: 'bookmark' | 'note'
         }
         tags: string[]
-        suggestedCategories?: Array<{
-            id: string
-            name: string
-            icon: string
-            confidence: number
-        }>
+        suggestedCategories?: SuggestedCategory[]
         message: string
     } | null>(null)
     const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -90,7 +92,7 @@ export function ChatInterface({
                 // AIが提案したカテゴリがある場合、最も信頼度の高いものを初期選択
                 if (data.suggestedCategories && data.suggestedCategories.length > 0) {
                     // 信頼度でソートして最も高いものを選択
-                    const bestCategory = data.suggestedCategories.sort((a: any, b: any) => b.confidence - a.confidence)[0]
+                    const bestCategory = data.suggestedCategories.sort((a: SuggestedCategory, b: SuggestedCategory) => b.confidence - a.confidence)[0]
                     setSelectedCategoryId(bestCategory.id)
                 }
             } catch (parseError) {

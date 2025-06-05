@@ -71,9 +71,10 @@ slug作成の重要ルール：
             const parsed = JSON.parse(jsonString);
             
             // 各項目を検証・修正
-            categories = parsed.filter((item: any) => item && typeof item.name === 'string')
+            categories = parsed.filter((item: { name?: string; slug?: string; icon?: string }) => item && typeof item.name === 'string')
                 .map((item: { name: string; slug?: string; icon?: string }) => {
-                    let { name, slug, icon } = item;
+                    const { name } = item;
+                    let { slug, icon } = item;
                     
                     // slugの検証・修正
                     if (!slug || typeof slug !== 'string' || slug.includes('---') || /^\d+$/.test(slug)) {

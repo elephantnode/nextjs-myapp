@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { CategoryIconMap } from '@/components/nav/category-icons'
-import { Hash, Filter } from 'lucide-react'
+// import { CategoryIconMap } from '@/components/nav/category-icons'
+import { Filter } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -62,7 +62,7 @@ export function CategoryItemsList({
     availableTags,
     workspaceName,
     categorySlug,
-    category,
+    // category,
     layout
 }: CategoryItemsListProps) {
     const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -181,7 +181,7 @@ export function CategoryItemsList({
         })
     }
 
-    const IconComponent = CategoryIconMap[category.icon as keyof typeof CategoryIconMap] || Hash
+    // const IconComponent = CategoryIconMap[category.icon as keyof typeof CategoryIconMap] || Hash
 
     return (
         <>
