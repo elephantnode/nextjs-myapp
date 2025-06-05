@@ -35,9 +35,31 @@ type Item = {
     }
 }
 
+type TaggedItem = {
+    id: string
+    workspace_id: string
+    category_id: string | null
+    type: 'bookmark' | 'note'
+    title: string
+    content: string | null
+    url: string | null
+    site_title: string | null
+    site_description: string | null
+    site_image_url: string | null
+    site_name: string | null
+    order: number
+    status: 'active' | 'trashed'
+    created_at: string
+    updated_at: string
+    tag: {
+        id: string
+        name: string
+    }
+}
+
 interface WorkspaceItemsListProps {
     recentItems: Item[]
-    taggedItems: any[]
+    taggedItems: TaggedItem[]
     allTags: Tag[]
     workspaceSlug: string
 }
@@ -260,7 +282,7 @@ export function WorkspaceItemsList({
                             {allTags
                                 .filter(tag => selectedTags.length === 0 || selectedTags.includes(tag.name))
                                 .map((tag: Tag) => {
-                                    const itemsWithTag = taggedItems.filter((item: any) => item.tag.id === tag.id)
+                                    const itemsWithTag = taggedItems.filter((item: TaggedItem) => item.tag.id === tag.id)
                                     if (itemsWithTag.length === 0) return null
                                     
                                     return (
@@ -282,7 +304,7 @@ export function WorkspaceItemsList({
                                             </div>
                                             
                                             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 pl-4">
-                                                {itemsWithTag.slice(0, 6).map((item: any) => (
+                                                {itemsWithTag.slice(0, 6).map((item: TaggedItem) => (
                                                     <div key={`${tag.id}-${item.id}`} className="group rounded-lg border p-3 hover:shadow-sm transition-shadow">
                                                         <h4 className="font-medium truncate mb-1">
                                                             {item.type === 'bookmark' && item.url ? (

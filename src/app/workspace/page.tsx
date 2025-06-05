@@ -24,7 +24,7 @@ type Workspace = {
     slug: string
 }
 
-export default async function WorkspaceTopPage({ params }: { params: Promise<{ name: string }> }) {
+export default async function WorkspaceTopPage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -32,7 +32,7 @@ export default async function WorkspaceTopPage({ params }: { params: Promise<{ n
         redirect('/auth/login')
     }
 
-    const { name } = await params
+    // const { name } = await params
 
     //Profileからユーザー情報を取得
     // ここでprofilesテーブルから追加情報を取得
@@ -75,11 +75,11 @@ export default async function WorkspaceTopPage({ params }: { params: Promise<{ n
     }))
 
     // 表示中のワークスペース内カテゴリーを取得
-    const { data: categories } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('workspace_id', name)
-        .order('order', { ascending: true })
+    // const { data: categories } = await supabase
+    //     .from('categories')
+    //     .select('*')
+    //     .eq('workspace_id', name)
+    //     .order('order', { ascending: true })
 
     return (
 
