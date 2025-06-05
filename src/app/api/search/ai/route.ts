@@ -199,12 +199,12 @@ async function performVectorSearch(
         
         // ベクトル類似検索を実行
         const { data: vectorData, error: vectorError } = await supabase.rpc(
-            'match_items', 
+            'match_items_by_embedding', 
             {
                 query_embedding: queryEmbedding,
-                match_threshold: 0.1,
+                match_threshold: 0.72,
                 match_count: limit,
-                workspace_id_param: workspaceId
+                target_workspace_id: workspaceId
             }
         )
 

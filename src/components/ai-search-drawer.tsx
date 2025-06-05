@@ -166,35 +166,38 @@ export function AISearchDrawer({
 
     return (
         <Drawer open={open} onOpenChange={onOpenChange}>
-            <DrawerContent className="h-[85vh] max-h-[85vh]">
-                <DrawerHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                        <DrawerTitle className="flex items-center gap-2">
-                            <Search className="w-5 h-5" />
-                            AI検索アシスタント
-                        </DrawerTitle>
-                        <div className="flex items-center gap-2">
-                            {messages.length > 0 && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={clearChat}
-                                >
-                                    <X className="w-4 h-4 mr-2" />
-                                    履歴をクリア
-                                </Button>
-                            )}
+            <DrawerContent className="h-[80vh] max-h-[80vh]">
+                <div className="mx-auto w-full max-w-4xl h-full flex flex-col">
+                    <DrawerHeader className="flex-shrink-0">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <DrawerTitle className="flex items-center gap-2 text-left">
+                                    <Search className="w-5 h-5" />
+                                    AI検索アシスタント
+                                </DrawerTitle>
+                                {workspaceName && (
+                                    <p className="text-sm text-muted-foreground text-left">
+                                        ワークスペース「{workspaceName}」内のアイテムを検索
+                                    </p>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {messages.length > 0 && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={clearChat}
+                                    >
+                                        <X className="w-4 h-4 mr-2" />
+                                        履歴をクリア
+                                    </Button>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                    {workspaceName && (
-                        <p className="text-sm text-muted-foreground">
-                            ワークスペース「{workspaceName}」内のアイテムを検索
-                        </p>
-                    )}
-                </DrawerHeader>
+                    </DrawerHeader>
 
-                {/* メッセージエリア */}
-                <div className="flex-1 overflow-y-auto px-4 pb-4">
+                    {/* メッセージエリア */}
+                    <div className="flex-1 overflow-y-auto px-4 pb-4">
                     {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                             <Bot className="w-12 h-12 mb-4 opacity-50" />
@@ -391,6 +394,7 @@ export function AISearchDrawer({
                         </Button>
                     </div>
                 </DrawerFooter>
+                </div>
             </DrawerContent>
         </Drawer>
     )
