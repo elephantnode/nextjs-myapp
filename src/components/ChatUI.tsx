@@ -101,7 +101,7 @@ export function ChatUI({ workspaceInfo }: { workspaceInfo: WorkspaceInfo }) {
                 })
                 
                 // AIが提案したslugを使用、無効な場合のみフォールバック
-                const baseSlug = category.slug && category.slug !== '--' && category.slug.length > 0 
+                let baseSlug = category.slug && category.slug !== '--' && category.slug.length > 0 
                     ? category.slug 
                     : category.name.toLowerCase().replace(/[ぁ-んァ-ヶー一-龯]/g, '').replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'category'
                     
@@ -136,7 +136,7 @@ export function ChatUI({ workspaceInfo }: { workspaceInfo: WorkspaceInfo }) {
             }
 
             // データベースに挿入
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('categories')
                 .insert(categoriesToInsert)
                 .select()

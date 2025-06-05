@@ -1,17 +1,41 @@
 "use client"
 
-import { ItemWithTags } from '@/types/database'
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { ExternalLink, FileText, Edit3, Trash2, Eye } from "lucide-react"
-import { useState } from 'react'
+import { useDraggable } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
+import { ExternalLink, FileText, Globe, GripVertical } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card-tile'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+
+type Tag = {
+    id: string
+    name: string
+    count?: number
+}
+
+type Item = {
+    id: string
+    workspace_id: string
+    category_id: string | null
+    type: 'bookmark' | 'note'
+    title: string
+    content: string | null
+    url: string | null
+    site_title: string | null
+    site_description: string | null
+    site_image_url: string | null
+    site_name: string | null
+    order: number
+    status: 'active' | 'trashed'
+    created_at: string
+    updated_at: string
+    tags: Tag[]
+}
 
 interface ItemGridTileProps {
-    item: ItemWithTags
+    item: Item
     selectedTags: string[]
     onTagToggle: (tagName: string) => void
     workspaceName: string
@@ -26,39 +50,62 @@ export function ItemGridTile({
     categorySlug
 }: ItemGridTileProps) {
     const [imageError, setImageError] = useState(false)
-    const [isLoading, setIsLoading] = useState(false)
-    const supabase = createClient()
-    const router = useRouter()
+    
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        isDragging,
+    } = useDraggable({
+        id: item.id,
+        data: {
+            type: 'item',
+            item: item,
+            title: item.title,
+        },
+    })
+
+    const style = {
+        transform: CSS.Translate.toString(transform),
+        opacity: isDragging ? 0.5 : 1,
+    }
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('ja-JP', {
+            month: '2-digit',
+            day: '2-digit'
+        })
+    }
+
+    const truncateText = (text: string, maxLength: number) => {
+        return text.length > maxLength ? text.slice(0, maxLength) + '...' : text
+    }
 
     const handleImageError = () => {
         setImageError(true)
     }
 
-    const handleDelete = async () => {
-        if (!confirm('このアイテムを削除しますか？')) return
-        
-        setIsLoading(true)
-        try {
-            const { error } = await supabase
-                .from('items')
-                .update({ status: 'trashed' })
-                .eq('id', item.id)
-            
-            if (error) throw error
-            router.refresh()
-        } catch (error) {
-            console.error('削除エラー:', error)
-            alert('削除に失敗しました')
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
     return (
-        <Card className="group hover:shadow-md transition-shadow overflow-hidden">
+        <Card 
+            ref={setNodeRef}
+            style={style}
+            className={`group hover:shadow-md transition-all duration-200 ${
+                isDragging ? 'shadow-lg scale-105 cursor-grabbing' : 'cursor-grab'
+            }`}
+        >
             <CardContent className="p-0">
                 {/* 画像エリア */}
-                <div className="relative h-32 bg-muted overflow-hidden">
+                <div className="relative h-32 bg-muted rounded-t-lg overflow-hidden">
+                    {/* ドラッグハンドル */}
+                    <div 
+                        {...listeners} 
+                        {...attributes}
+                        className="absolute top-2 left-2 z-10 p-1 rounded bg-white/80 hover:bg-white cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                        <GripVertical className="w-4 h-4 text-gray-600" />
+                    </div>
+
                     {item.type === 'bookmark' && item.site_image_url && !imageError ? (
                         <img
                             src={item.site_image_url}
@@ -76,83 +123,88 @@ export function ItemGridTile({
                         </div>
                     )}
                     
-                    {/* ホバー時のアクションボタン */}
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="secondary" size="sm" asChild>
-                            <Link href={`/workspace/${workspaceName}/${categorySlug}/${item.id}`}>
-                                <Eye className="w-4 h-4" />
-                            </Link>
-                        </Button>
-                        
-                        <Button variant="secondary" size="sm" asChild>
-                            <Link href={`/workspace/${workspaceName}/${categorySlug}/${item.id}?edit=true`}>
-                                <Edit3 className="w-4 h-4" />
-                            </Link>
-                        </Button>
-                        
-                        <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            onClick={handleDelete}
-                            disabled={isLoading}
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </Button>
-                        
-                        {item.type === 'bookmark' && item.url && (
-                            <Button variant="secondary" size="sm" asChild>
-                                <a href={item.url} target="_blank" rel="noopener noreferrer">
-                                    <ExternalLink className="w-4 h-4" />
+                    {/* 外部リンクボタン（ブックマークの場合のみ） */}
+                    {item.type === 'bookmark' && item.url && (
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                asChild
+                                className="h-7 w-7 p-0"
+                            >
+                                <a 
+                                    href={item.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <ExternalLink className="w-3 h-3" />
                                 </a>
                             </Button>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* コンテンツエリア */}
                 <div className="p-3 space-y-2">
-                    <h3 className="font-medium text-sm line-clamp-2">
-                        {item.title}
-                    </h3>
-                    
+                    {/* タイトル */}
+                    <Link 
+                        href={`/workspace/${workspaceName}/${categorySlug}/${item.id}`}
+                        className="block"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="font-medium text-sm line-clamp-2 hover:text-primary transition-colors">
+                            {item.title}
+                        </h3>
+                    </Link>
+
+                    {/* 説明文（ある場合のみ） */}
                     {(item.site_description || item.content) && (
                         <p className="text-xs text-muted-foreground line-clamp-2">
-                            {item.site_description || item.content}
+                            {truncateText(item.site_description || item.content || '', 80)}
                         </p>
                     )}
 
+                    {/* メタ情報 */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        {item.site_name ? (
+                            <div className="flex items-center gap-1 min-w-0 flex-1">
+                                <Globe className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{item.site_name}</span>
+                            </div>
+                        ) : (
+                            <div className="flex-1" />
+                        )}
+                        <span className="flex-shrink-0">{formatDate(item.created_at)}</span>
+                    </div>
+
                     {/* タグ */}
-                    {item.item_tags.length > 0 && (
+                    {item.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                            {item.item_tags.slice(0, 3).map((itemTag) => (
+                            {item.tags.slice(0, 3).map((tag) => (
                                 <Badge
-                                    key={itemTag.tags.id}
-                                    variant={selectedTags.includes(itemTag.tags.name) ? "default" : "secondary"}
+                                    key={tag.id}
+                                    variant={selectedTags.includes(tag.name) ? "default" : "secondary"}
                                     className={`text-xs cursor-pointer transition-colors ${
-                                        selectedTags.includes(itemTag.tags.name) 
+                                        selectedTags.includes(tag.name) 
                                             ? 'bg-primary text-primary-foreground' 
                                             : 'hover:bg-primary/10'
                                     }`}
                                     onClick={(e) => {
                                         e.stopPropagation()
-                                        onTagToggle(itemTag.tags.name)
+                                        onTagToggle(tag.name)
                                     }}
                                 >
-                                    {itemTag.tags.name}
+                                    {tag.name}
                                 </Badge>
                             ))}
-                            {item.item_tags.length > 3 && (
+                            {item.tags.length > 3 && (
                                 <Badge variant="outline" className="text-xs">
-                                    +{item.item_tags.length - 3}
+                                    +{item.tags.length - 3}
                                 </Badge>
                             )}
                         </div>
                     )}
-
-                    {/* 日付 */}
-                    <div className="text-xs text-muted-foreground">
-                        {new Date(item.created_at).toLocaleDateString('ja-JP')}
-                    </div>
                 </div>
             </CardContent>
         </Card>

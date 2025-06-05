@@ -44,6 +44,9 @@ const layoutOptions = [
 ]
 
 export function LayoutSelector({ currentLayout, onLayoutChange }: LayoutSelectorProps) {
+    const currentOption = layoutOptions.find(option => option.value === currentLayout)
+    const CurrentIcon = currentOption?.icon || List
+
     return (
         <Select value={currentLayout} onValueChange={onLayoutChange}>
             <SelectTrigger className="w-[180px]">

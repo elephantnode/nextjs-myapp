@@ -63,6 +63,7 @@ export function WorkspaceChatDrawer({
                     <div className="px-4 pb-4 flex-1 overflow-hidden">
                         <WorkspaceChatInterface 
                             workspaceId={workspaceId}
+                            workspaceName={workspaceName}
                             categories={categories}
                             onSave={() => setOpen(false)}
                         />
