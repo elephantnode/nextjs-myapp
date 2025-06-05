@@ -253,7 +253,7 @@ export function WorkspaceSwitcher({
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </>
-            ) : activeWorkspace ? (
+            ) : (
             <SidebarMenuItem>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -266,9 +266,9 @@ export function WorkspaceSwitcher({
                             </div>
                             <div className="grid flex-1 text-left text-sm leading-tight">
                                 <span className="truncate font-semibold">
-                                        {activeWorkspace.name}
+                                        {activeWorkspace?.name || workspaces[0]?.name || 'No Workspace'}
                                 </span>
-                                    <span className="truncate text-xs">{activeWorkspace.name}</span>
+                                    <span className="truncate text-xs">{activeWorkspace?.name || workspaces[0]?.name || 'No Workspace'}</span>
                             </div>
                             <ChevronsUpDown className="ml-auto" />
                         </SidebarMenuButton>
@@ -323,7 +323,7 @@ export function WorkspaceSwitcher({
                     </DropdownMenuContent>
                 </DropdownMenu>
             </SidebarMenuItem>
-            ) : null}
+            )}
             <WorkspaceDialog
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
