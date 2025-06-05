@@ -47,6 +47,7 @@ export function createEmbeddingText(item: {
             parts.push(domain)
         } catch (error) {
             // URL解析に失敗した場合は無視
+            console.error('URL解析に失敗しました:', error)
         }
     }
     

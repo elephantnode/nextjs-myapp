@@ -1,8 +1,9 @@
 import { google } from '@ai-sdk/google'
-import { generateText } from 'ai'
+import { generateText, streamText } from 'ai'
 import ogs from 'open-graph-scraper'
 import { NextRequest } from 'next/server'
 import { tools } from '@/lib/ai/tools'
+import { createClient } from '@/lib/supabase/server'
 
 // メッセージの型
 type Message = {
@@ -19,9 +20,9 @@ export async function POST(req: NextRequest) {
             // URL または メモの追加処理
             const lastMessage = messages[messages.length - 1]
             const input = lastMessage.content
-            
+
             let ogpData = null
-            
+
             // URLの場合、OGP情報を取得
             const urlMatch = input.match(/https?:\/\/[^\s]+/)
             if (urlMatch) {
@@ -36,22 +37,21 @@ export async function POST(req: NextRequest) {
             }
 
             // ワークスペース内のカテゴリを取得（カテゴリ提案用）
-            let categories: Array<{id: string, name: string, icon: string}> = []
-            let existingTags: Array<{name: string, count: number}> = []
+            let categories: Array<{ id: string, name: string, icon: string }> = []
+            let existingTags: Array<{ name: string, count: number }> = []
             if (workspaceId) {
                 try {
-                    const { createClient } = await import('@/lib/supabase/server')
                     const supabase = await createClient()
-                    
+
                     // カテゴリを取得
                     const { data: categoriesData } = await supabase
                         .from('categories')
                         .select('id, name, icon')
                         .eq('workspace_id', workspaceId)
                         .order('order', { ascending: true })
-                    
+
                     categories = categoriesData || []
-                    
+
                     // 既存タグを使用回数と共に取得
                     const { data: tagsData } = await supabase
                         .from('tags')
@@ -60,20 +60,20 @@ export async function POST(req: NextRequest) {
                             item_tags!inner(id)
                         `)
                         .eq('workspace_id', workspaceId)
-                    
+
                     // タグの使用回数を集計
-                    const tagCounts = (tagsData || []).reduce((acc: {[key: string]: number}, tag: any) => {
+                    const tagCounts = (tagsData || []).reduce((acc: { [key: string]: number }, tag: { name: string; item_tags: { id: string }[] }) => {
                         const count = tag.item_tags?.length || 0
                         acc[tag.name] = count
                         return acc
                     }, {})
-                    
+
                     // 使用回数順にソート
                     existingTags = Object.entries(tagCounts)
                         .map(([name, count]) => ({ name, count: count as number }))
                         .sort((a, b) => b.count - a.count)
                         .slice(0, 20) // 上位20個まで
-                        
+
                 } catch (error) {
                     console.error('カテゴリ・タグ取得エラー:', error)
                 }
@@ -137,21 +137,21 @@ ${existingTags.map(tag => `- ${tag.name} (${tag.count}回使用)`).join('\n')}
 例：既存タグがある場合 → ["プログラミング", "JavaScript", "React", "フロントエンド", "チュートリアル"]`,
                 temperature: 0.1
             })
-            
+
             console.log('AI Raw Response:', result.text)
-            
+
             // AIからの応答をパースしてJSONを抽出
             let parsedResponse
             try {
                 // マークダウンのJSONコードブロックから実際のJSONを抽出
                 const jsonMatch = result.text.match(/```json\s*([\s\S]*?)\s*```/)
                 let jsonString = jsonMatch ? jsonMatch[1] : result.text
-                
+
                 // もしマークダウンブロックがない場合、テキスト全体を試す
                 jsonString = jsonString.trim()
-                
+
                 const aiResponse = JSON.parse(jsonString)
-                
+
                 // AI応答から実際のコンテンツデータを構築
                 parsedResponse = {
                     type: "content_suggested",
@@ -169,23 +169,23 @@ ${existingTags.map(tag => `- ${tag.name} (${tag.count}回使用)`).join('\n')}
                     suggestedCategories: Array.isArray(aiResponse.suggestedCategories) ? aiResponse.suggestedCategories : [],
                     message: aiResponse.message || "コンテンツを解析しました。"
                 }
-                
+
                 console.log('Parsed AI Response:', parsedResponse)
             } catch (parseError) {
                 console.error('JSON Parse Error:', parseError)
                 console.error('Original AI response:', result.text)
-                
+
                 // パースに失敗した場合は、既存タグから推測して選択
                 let extractedTags = ["一般", "メモ"];
-                
+
                 // まず既存タグから関連しそうなものを探す
                 if (existingTags.length > 0) {
                     const inputLower = input.toLowerCase()
-                    const matchingTags = existingTags.filter(tag => 
+                    const matchingTags = existingTags.filter(tag =>
                         inputLower.includes(tag.name.toLowerCase()) ||
                         tag.name.toLowerCase().includes(inputLower.slice(0, 5)) // 最初の5文字で部分一致
                     ).slice(0, 3) // 最大3個
-                    
+
                     if (matchingTags.length > 0) {
                         extractedTags = matchingTags.map(tag => tag.name)
                         // 不足分は人気の高いタグで補完
@@ -211,7 +211,7 @@ ${existingTags.map(tag => `- ${tag.name} (${tag.count}回使用)`).join('\n')}
                             .filter(tag => tag.length >= 2 && tag.length <= 10)
                             .slice(0, 5);
                     }
-                
+
                     if (extractedTags.length === 0) {
                         if (ogpData) {
                             extractedTags = ["ブックマーク", "ウェブ"];
@@ -245,7 +245,7 @@ ${existingTags.map(tag => `- ${tag.name} (${tag.count}回使用)`).join('\n')}
                     message: "コンテンツを解析しました。タグを確認して保存してください。"
                 }
             }
-            
+
             return new Response(JSON.stringify(parsedResponse), {
                 headers: { 'Content-Type': 'application/json' }
             })
@@ -271,11 +271,10 @@ ${existingTags.map(tag => `- ${tag.name} (${tag.count}回使用)`).join('\n')}
 
 重要：ユーザーが「本のカテゴリー」と言ったら本関連のみ、「旅行」と言ったら旅行関連のみを提案してください。`
 
-            const { streamText } = await import('ai')
-    const response = await streamText({
-        model: google('gemini-2.0-flash'),
+            const response = await streamText({
+                model: google('gemini-2.0-flash'),
                 system: systemMessage,
-        messages,
+                messages,
                 tools,
                 maxSteps: 1,
             })
