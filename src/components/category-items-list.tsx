@@ -1,16 +1,16 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { CategoryIconMap } from '@/components/nav/category-icons'
-import { Hash, Filter } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { TagFilterSidebar } from '@/components/tag-filter-sidebar'
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Filter } from "lucide-react"
 import { DraggableItemCard } from '@/components/draggable-item-card'
-import { ItemListCompact } from '@/components/item-list-compact'
 import { ItemGridTile } from '@/components/item-grid-tile'
-import type { LayoutType } from '@/components/layout-selector'
+import { ItemListCompact } from '@/components/item-list-compact'
+import { TagFilterSidebar } from '@/components/tag-filter-sidebar'
+import { LayoutType } from '@/components/layout-selector'
+import { ItemWithTags } from '@/types/database'
 
 type Tag = {
     id: string
@@ -18,6 +18,7 @@ type Tag = {
     count?: number
 }
 
+// 子コンポーネントで期待される型
 type Item = {
     id: string
     workspace_id: string
@@ -34,26 +35,20 @@ type Item = {
     status: 'active' | 'trashed'
     created_at: string
     updated_at: string
-    tags: Tag[]
+    tags: { id: string; name: string }[]
 }
 
-type Category = {
-    id: string
-    workspace_id: string
-    name: string
-    slug: string
-    icon: string
-    order: number
-    parent_id: string | null
-    created_at: string
-}
+// ItemWithTagsをItem型に変換する関数
+const convertToItem = (itemWithTags: ItemWithTags): Item => ({
+    ...itemWithTags,
+    tags: itemWithTags.item_tags.map(itemTag => itemTag.tags)
+})
 
 interface CategoryItemsListProps {
-    items: Item[]
+    items: ItemWithTags[]
     availableTags: Tag[]
     workspaceName: string
     categorySlug: string
-    category: Category
     layout: LayoutType
 }
 
@@ -62,7 +57,6 @@ export function CategoryItemsList({
     availableTags,
     workspaceName,
     categorySlug,
-    category,
     layout
 }: CategoryItemsListProps) {
     const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -78,7 +72,7 @@ export function CategoryItemsList({
     const filteredItems = items.filter(item => {
         if (selectedTags.length === 0) return true
         return selectedTags.every(selectedTag => 
-            item.tags.some(itemTag => itemTag.name === selectedTag)
+            item.item_tags.some(itemTag => itemTag.tags.name === selectedTag)
         )
     })
 
@@ -144,7 +138,7 @@ export function CategoryItemsList({
                     return (
                         <ItemListCompact
                             key={itemKey}
-                            item={item}
+                            item={convertToItem(item)}
                             selectedTags={selectedTags}
                             onTagToggle={handleTagToggle}
                             workspaceName={workspaceName}
@@ -170,7 +164,7 @@ export function CategoryItemsList({
                     return (
                         <DraggableItemCard
                             key={itemKey}
-                            item={item}
+                            item={convertToItem(item)}
                             selectedTags={selectedTags}
                             onTagToggle={handleTagToggle}
                             workspaceName={workspaceName}
@@ -180,8 +174,6 @@ export function CategoryItemsList({
             }
         })
     }
-
-    const IconComponent = CategoryIconMap[category.icon as keyof typeof CategoryIconMap] || Hash
 
     return (
         <>

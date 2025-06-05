@@ -24,6 +24,7 @@ type Workspace = {
     slug: string
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default async function WorkspaceTopPage({ params }: { params: Promise<{ name: string }> }) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -31,8 +32,6 @@ export default async function WorkspaceTopPage({ params }: { params: Promise<{ n
     if (!user) {
         redirect('/auth/login')
     }
-
-    const { name } = await params
 
     //Profileからユーザー情報を取得
     // ここでprofilesテーブルから追加情報を取得
@@ -73,13 +72,6 @@ export default async function WorkspaceTopPage({ params }: { params: Promise<{ n
         user_id: workspace.user_id,
         order: workspace.order,
     }))
-
-    // 表示中のワークスペース内カテゴリーを取得
-    const { data: categories } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('workspace_id', name)
-        .order('order', { ascending: true })
 
     return (
 

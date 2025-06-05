@@ -68,7 +68,7 @@ export function NewsModal({ open, onOpenChange, categoryId, categoryName }: News
         } finally {
             setLoading(false)
         }
-    }, [categoryId, categoryName])
+    }, [categoryId])
 
     // モーダルが開かれたときに自動的にニュースを取得
     useEffect(() => {

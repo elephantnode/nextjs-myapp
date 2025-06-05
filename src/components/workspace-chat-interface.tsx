@@ -4,15 +4,14 @@ import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Send, Loader2, Plus, Check, X, ExternalLink, Globe } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Loader2, Send, Globe, Plus, ExternalLink, Check, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 interface WorkspaceChatInterfaceProps {
     workspaceId: string
-    workspaceName: string
     categories: Array<{
         id: string
         name: string
@@ -22,9 +21,15 @@ interface WorkspaceChatInterfaceProps {
     onSave?: () => void
 }
 
+type SuggestedCategory = {
+    id: string
+    name: string
+    icon: string
+    confidence: number
+}
+
 export function WorkspaceChatInterface({ 
     workspaceId, 
-    // workspaceName,
     categories,
     onSave
 }: WorkspaceChatInterfaceProps) {
@@ -44,12 +49,7 @@ export function WorkspaceChatInterface({
             type: 'bookmark' | 'note'
         }
         tags: string[]
-        suggestedCategories?: Array<{
-            id: string
-            name: string
-            icon: string
-            confidence: number
-        }>
+        suggestedCategories?: SuggestedCategory[]
         message: string
     } | null>(null)
     const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -58,8 +58,6 @@ export function WorkspaceChatInterface({
     const [isSaving, setIsSaving] = useState(false)
     const [imageError, setImageError] = useState(false)
     const bottomRef = useRef<HTMLDivElement>(null)
-    // const router = useRouter()
-    // const supabase = createClient()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -96,7 +94,7 @@ export function WorkspaceChatInterface({
                 // AIが提案したカテゴリがある場合、最も信頼度の高いものを初期選択
                 if (data.suggestedCategories && data.suggestedCategories.length > 0) {
                     // 信頼度でソートして最も高いものを選択
-                    const bestCategory = data.suggestedCategories.sort((a: any, b: any) => b.confidence - a.confidence)[0]
+                    const bestCategory = data.suggestedCategories.sort((a: SuggestedCategory, b: SuggestedCategory) => b.confidence - a.confidence)[0]
                     setSelectedCategoryId(bestCategory.id)
                 }
             } catch (parseError) {
@@ -333,10 +331,12 @@ export function WorkspaceChatInterface({
                                 
                                 {aiResponse.content.site_image_url && !imageError && (
                                     <div className="flex-shrink-0">
-                                        <img 
+                                        <Image 
                                             src={aiResponse.content.site_image_url} 
                                             alt={aiResponse.content.title}
-                                            className="w-20 h-20 object-cover rounded"
+                                            width={80}
+                                            height={80}
+                                            className="object-cover rounded"
                                             onError={handleImageError}
                                         />
                                     </div>

@@ -178,8 +178,11 @@ export function DraggableItemCard({
                 {item.type === 'bookmark' && item.site_image_url && (
                     <div className="mt-3">
                         <ItemImage
-                            src={item.site_image_url}
-                            alt={item.site_title || item.title}
+                            item={{
+                                type: item.type,
+                                site_image_url: item.site_image_url,
+                                title: item.title
+                            }}
                             className="w-full max-w-sm h-32 object-cover rounded-md border"
                         />
                     </div>

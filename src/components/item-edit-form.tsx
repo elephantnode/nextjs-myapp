@@ -329,8 +329,11 @@ export function ItemEditForm({
                                 <div className="space-y-2">
                                     <Label>画像</Label>
                                     <ItemImage
-                                        src={item.site_image_url}
-                                        alt={item.site_title || item.title}
+                                        item={{
+                                            type: item.type,
+                                            site_image_url: item.site_image_url,
+                                            title: item.title
+                                        }}
                                         className="w-full max-w-md h-40 object-cover rounded-lg border"
                                     />
                                 </div>

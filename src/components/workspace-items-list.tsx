@@ -1,15 +1,20 @@
 "use client"
 
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Filter, ExternalLink } from 'lucide-react'
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { ExternalLink, Filter } from "lucide-react"
 import { TagFilterSidebar } from '@/components/tag-filter-sidebar'
 
 type Tag = {
     id: string
     name: string
     count?: number
+}
+
+type TaggedItem = {
+    tag: Tag
+    item: Item
 }
 
 type Item = {
@@ -37,7 +42,7 @@ type Item = {
 
 interface WorkspaceItemsListProps {
     recentItems: Item[]
-    taggedItems: any[]
+    taggedItems: TaggedItem[]
     allTags: Tag[]
     workspaceSlug: string
 }
@@ -221,17 +226,17 @@ export function WorkspaceItemsList({
                                                 </div>
                                             )}
                                         </div>
-                                        
-                                        {item.type === 'bookmark' && item.site_image_url && (
-                                            <div className="w-20 h-20 flex-shrink-0 m-4 ml-0">
-                                                <img 
-                                                    src={item.site_image_url} 
-                                                    alt={item.title}
-                                                    className="w-full h-full object-cover rounded-md"
-                                                />
-                                            </div>
-                                        )}
                                     </div>
+                                    
+                                    {item.type === 'bookmark' && item.site_image_url && (
+                                        <div className="w-20 h-20 flex-shrink-0 m-4 ml-0">
+                                            <img 
+                                                src={item.site_image_url} 
+                                                alt={item.title}
+                                                className="w-full h-full object-cover rounded-md"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -260,7 +265,7 @@ export function WorkspaceItemsList({
                             {allTags
                                 .filter(tag => selectedTags.length === 0 || selectedTags.includes(tag.name))
                                 .map((tag: Tag) => {
-                                    const itemsWithTag = taggedItems.filter((item: any) => item.tag.id === tag.id)
+                                    const itemsWithTag = taggedItems.filter((item: TaggedItem) => item.tag.id === tag.id)
                                     if (itemsWithTag.length === 0) return null
                                     
                                     return (
@@ -282,36 +287,36 @@ export function WorkspaceItemsList({
                                             </div>
                                             
                                             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 pl-4">
-                                                {itemsWithTag.slice(0, 6).map((item: any) => (
-                                                    <div key={`${tag.id}-${item.id}`} className="group rounded-lg border p-3 hover:shadow-sm transition-shadow">
+                                                {itemsWithTag.slice(0, 6).map((item: TaggedItem) => (
+                                                    <div key={`${tag.id}-${item.item.id}`} className="group rounded-lg border p-3 hover:shadow-sm transition-shadow">
                                                         <h4 className="font-medium truncate mb-1">
-                                                            {item.type === 'bookmark' && item.url ? (
+                                                            {item.item.type === 'bookmark' && item.item.url ? (
                                                                 <a 
-                                                                    href={item.url}
+                                                                    href={item.item.url}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     className="hover:underline text-blue-600 hover:text-blue-800 flex items-center gap-1"
                                                                 >
-                                                                    {item.title}
+                                                                    {item.item.title}
                                                                     <ExternalLink className="h-3 w-3 flex-shrink-0" />
                                                                 </a>
                                                             ) : (
                                                                 <a 
-                                                                    href={`/workspace/${workspaceSlug}/${item.category_id}/${item.id}`}
+                                                                    href={`/workspace/${workspaceSlug}/${item.item.category_id}/${item.item.id}`}
                                                                     className="hover:underline"
                                                                 >
-                                                                    {item.title}
+                                                                    {item.item.title}
                                                                 </a>
                                                             )}
                                                         </h4>
                                                         
                                                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                             <span className={`px-2 py-0.5 rounded-full ${
-                                                                item.type === 'bookmark' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                                                                item.item.type === 'bookmark' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
                                                             }`}>
-                                                                {item.type === 'bookmark' ? 'ブックマーク' : 'ノート'}
+                                                                {item.item.type === 'bookmark' ? 'ブックマーク' : 'ノート'}
                                                             </span>
-                                                            <span>{new Date(item.created_at).toLocaleDateString('ja-JP')}</span>
+                                                            <span>{new Date(item.item.created_at).toLocaleDateString('ja-JP')}</span>
                                                         </div>
                                                     </div>
                                                 ))}

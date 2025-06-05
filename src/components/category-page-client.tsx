@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { CategoryItemsList } from '@/components/category-items-list'
 import { NewsModal } from '@/components/news-modal'
 import { LayoutSelector, type LayoutType } from '@/components/layout-selector'
+import { ItemWithTags } from '@/types/database'
 
 type Category = {
     id: string
@@ -19,25 +20,6 @@ type Category = {
     created_at: string
 }
 
-type Item = {
-    id: string
-    workspace_id: string
-    category_id: string | null
-    type: 'bookmark' | 'note'
-    title: string
-    content: string | null
-    url: string | null
-    site_title: string | null
-    site_description: string | null
-    site_image_url: string | null
-    site_name: string | null
-    order: number
-    status: 'active' | 'trashed'
-    created_at: string
-    updated_at: string
-    tags: Tag[]
-}
-
 type Tag = {
     id: string
     name: string
@@ -46,7 +28,7 @@ type Tag = {
 
 interface CategoryPageClientProps {
     category: Category
-    itemsWithTags: Item[]
+    itemsWithTags: ItemWithTags[]
     availableTags: Tag[]
     workspaceName: string
     categorySlug: string
@@ -124,7 +106,6 @@ export function CategoryPageClient({
                     availableTags={availableTags}
                     workspaceName={workspaceName}
                     categorySlug={categorySlug}
-                    category={category}
                     layout={currentLayout}
                 />
             </div>

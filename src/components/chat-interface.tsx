@@ -4,8 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Send, Loader2, Plus, Check, X, ExternalLink, Globe } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Loader2, Send, ExternalLink, Plus, Check, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
 
@@ -14,6 +14,13 @@ interface ChatInterfaceProps {
     categoryId: string
     categoryName: string
     onSave?: () => void
+}
+
+type SuggestedCategory = {
+    id: string
+    name: string
+    icon: string
+    confidence: number
 }
 
 export function ChatInterface({ 
@@ -38,12 +45,7 @@ export function ChatInterface({
             type: 'bookmark' | 'note'
         }
         tags: string[]
-        suggestedCategories?: Array<{
-            id: string
-            name: string
-            icon: string
-            confidence: number
-        }>
+        suggestedCategories?: SuggestedCategory[]
         message: string
     } | null>(null)
     const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -53,7 +55,6 @@ export function ChatInterface({
     const [imageError, setImageError] = useState(false)
     const bottomRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
-    // const supabase = createClient()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -90,7 +91,7 @@ export function ChatInterface({
                 // AIが提案したカテゴリがある場合、最も信頼度の高いものを初期選択
                 if (data.suggestedCategories && data.suggestedCategories.length > 0) {
                     // 信頼度でソートして最も高いものを選択
-                    const bestCategory = data.suggestedCategories.sort((a: any, b: any) => b.confidence - a.confidence)[0]
+                    const bestCategory = data.suggestedCategories.sort((a: SuggestedCategory, b: SuggestedCategory) => b.confidence - a.confidence)[0]
                     setSelectedCategoryId(bestCategory.id)
                 }
             } catch (parseError) {
@@ -288,7 +289,7 @@ export function ChatInterface({
                                             </>
                                         ) : (
                                             <>
-                                                <Globe className="w-5 h-5" />
+                                                <ExternalLink className="w-5 h-5" />
                                                 メモ
                                             </>
                                         )}
@@ -301,7 +302,7 @@ export function ChatInterface({
                                         
                                         {aiResponse.content.site_name && (
                                             <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                                <Globe className="w-4 h-4" />
+                                                <ExternalLink className="w-4 h-4" />
                                                 {aiResponse.content.site_name}
                                             </p>
                                         )}

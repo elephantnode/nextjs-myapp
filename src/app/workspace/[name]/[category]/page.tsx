@@ -37,25 +37,6 @@ type Category = {
     created_at: string
 }
 
-type Item = {
-    id: string
-    workspace_id: string
-    category_id: string | null
-    type: 'bookmark' | 'note'
-    title: string
-    content: string | null
-    url: string | null
-    site_title: string | null
-    site_description: string | null
-    site_image_url: string | null
-    site_name: string | null
-    order: number
-    status: 'active' | 'trashed'
-    created_at: string
-    updated_at: string
-    tags: Tag[]
-}
-
 type Tag = {
     id: string
     name: string
@@ -242,7 +223,7 @@ export default async function CategoryPage({
     }
 
     // アイテムデータを整形（タグ付き）
-    const itemsWithTags: Item[] = (itemsData || []).map((item: DbItem) => ({
+    const itemsWithTags = (itemsData || []).map((item: DbItem) => ({
         id: item.id,
         workspace_id: item.workspace_id,
         category_id: item.category_id,
@@ -258,7 +239,12 @@ export default async function CategoryPage({
         status: item.status,
         created_at: item.created_at,
         updated_at: item.updated_at,
-        tags: tagsByItemId[item.id] || []
+        item_tags: (tagsByItemId[item.id] || []).map(tag => ({
+            tags: {
+                id: tag.id,
+                name: tag.name
+            }
+        }))
     }))
 
     // 利用可能なタグリストを作成
