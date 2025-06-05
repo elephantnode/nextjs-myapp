@@ -96,7 +96,7 @@ export default async function WorkspaceTopPage() {
                             </p>
                             {workspaces.length === 0 ? (
                                 <div className="text-center">
-                                    <p className="text-muted-foreground mb-4">ワークスペースがありません</p>
+                                    <p className="text-muted-foreground mb-4">ワークスペースがありませんでした</p>
                                     <p className="text-sm text-muted-foreground">
                                         サイドバーの「Add Workspace」から新しいワークスペースを作成してください。
                                     </p>
