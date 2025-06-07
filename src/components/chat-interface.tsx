@@ -20,6 +20,8 @@ interface ChatInterfaceProps {
     workspaceId: string
     categoryId: string
     categoryName: string
+    workspaceSlug: string
+    categorySlug: string
     onSave?: () => void
 }
 
@@ -27,6 +29,8 @@ export function ChatInterface({
     workspaceId, 
     categoryId, 
     categoryName,
+    workspaceSlug,
+    categorySlug,
     onSave
 }: ChatInterfaceProps) {
     const [input, setInput] = useState('')
@@ -234,7 +238,27 @@ export function ChatInterface({
             setCustomTagInput('')
             setImageError(false)
             
-            router.refresh()
+            // 実際に登録されたカテゴリーのスラッグを取得してリダイレクト
+            let finalCategorySlug = categorySlug
+            if (selectedCategoryId !== categoryId) {
+                // AIが提案したカテゴリーに変更された場合、APIから情報を取得
+                try {
+                    const supabase = createClient()
+                    const { data: categoryData } = await supabase
+                        .from('categories')
+                        .select('slug')
+                        .eq('id', selectedCategoryId)
+                        .single()
+                    
+                    if (categoryData) {
+                        finalCategorySlug = categoryData.slug
+                    }
+                } catch (error) {
+                    console.error('カテゴリースラッグ取得エラー:', error)
+                    // エラーの場合は元のカテゴリーのままにする
+                }
+            }
+            const redirectUrl = `/workspace/${workspaceSlug}/${finalCategorySlug}`
             
             const message = result.hasEmbedding 
                 ? 'コンテンツを保存しました！（ベクトル検索対応済み）'
@@ -242,8 +266,13 @@ export function ChatInterface({
             
             alert(message)
             
-            // ドロワーを閉じる
+            // ドロワーを閉じてからリダイレクト
             onSave?.()
+            
+            // 少し待ってからリダイレクト
+            setTimeout(() => {
+                router.push(redirectUrl)
+            }, 1000)
 
         } catch (error) {
             console.error('Save error:', error)

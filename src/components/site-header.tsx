@@ -15,12 +15,19 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useSidebar } from "@/components/ui/sidebar"
 
+export interface BreadcrumbItemData {
+  label: string
+  href?: string
+  isCurrentPage?: boolean
+}
+
 interface SiteHeaderProps {
   workspaceId?: string
   workspaceName?: string
+  breadcrumbItems?: BreadcrumbItemData[]
 }
 
-export function SiteHeader({ workspaceId, workspaceName }: SiteHeaderProps) {
+export function SiteHeader({ workspaceId, workspaceName, breadcrumbItems = [] }: SiteHeaderProps) {
   const { toggleSidebar } = useSidebar()
   const [searchDrawerOpen, setSearchDrawerOpen] = useState(false)
 
@@ -37,19 +44,27 @@ export function SiteHeader({ workspaceId, workspaceName }: SiteHeaderProps) {
             <SidebarIcon />
           </Button>
           <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb className="hidden sm:block">
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="#">
-                  Building Your Application
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
+          
+          {breadcrumbItems.length > 0 && (
+            <Breadcrumb className="hidden sm:block">
+              <BreadcrumbList>
+                {breadcrumbItems.map((item, index) => (
+                  <div key={index} className="flex items-center">
+                    <BreadcrumbItem>
+                      {item.isCurrentPage ? (
+                        <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbLink href={item.href || "#"}>
+                          {item.label}
+                        </BreadcrumbLink>
+                      )}
+                    </BreadcrumbItem>
+                    {index < breadcrumbItems.length - 1 && <BreadcrumbSeparator />}
+                  </div>
+                ))}
+              </BreadcrumbList>
+            </Breadcrumb>
+          )}
           
           {/* AI検索ボタン */}
           <div className="ml-auto">

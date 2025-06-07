@@ -9,7 +9,9 @@ interface FloatingChatButtonProps {
     workspaceId: string
     categoryName?: string
     categoryId?: string
+    categorySlug?: string
     workspaceName?: string
+    workspaceSlug?: string
     categories?: Array<{
         id: string
         name: string
@@ -22,17 +24,21 @@ export function FloatingChatButton({
     workspaceId,
     categoryName,
     categoryId,
+    categorySlug,
     workspaceName,
+    workspaceSlug,
     categories
 }: FloatingChatButtonProps) {
     // カテゴリーが指定されている場合は通常のChatDrawer
-    if (categoryName && categoryId) {
+    if (categoryName && categoryId && categorySlug && workspaceSlug) {
         return (
             <div className="fixed bottom-6 right-6 z-50">
                 <ChatDrawer
                     workspaceId={workspaceId}
                     categoryName={categoryName}
                     categoryId={categoryId}
+                    workspaceSlug={workspaceSlug}
+                    categorySlug={categorySlug}
                 >
                     <Button
                         size="lg"
@@ -52,6 +58,7 @@ export function FloatingChatButton({
             <WorkspaceChatDrawer
                 workspaceId={workspaceId}
                 workspaceName={workspaceName || 'ワークスペース'}
+                workspaceSlug={workspaceSlug || ''}
                 categories={categories || []}
             >
                 <Button

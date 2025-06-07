@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ItemEditForm } from '@/components/item-edit-form'
+import { generateBreadcrumbs } from '@/lib/breadcrumb-utils'
 
 type UserProfile = {
     id: string
@@ -212,11 +213,22 @@ export default async function ItemEditPage({
 
     const IconComponent = CategoryIconMap[category.icon as keyof typeof CategoryIconMap] || Hash
 
+    // ブレッドクラムを生成
+    const breadcrumbItems = generateBreadcrumbs({
+        workspaceName: currentWorkspace.name,
+        workspaceSlug: currentWorkspace.slug,
+        categoryName: category.name,
+        categorySlug: category.slug,
+        itemTitle: item.title,
+        itemId: item.id
+    })
+
     return (
         <SidebarProvider className="flex flex-col">
             <SiteHeader 
                 workspaceId={currentWorkspace.id}
                 workspaceName={currentWorkspace.name}
+                breadcrumbItems={breadcrumbItems}
             />
             <div className="flex flex-1">
                 <AppSidebar 

@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { LogoutButton } from '@/components/logout-button'
 import { createClient } from '@/lib/supabase/server'
+import { generateBreadcrumbs } from '@/lib/breadcrumb-utils'
 
 type UserProfile = {
   id: string
@@ -70,10 +71,13 @@ export default async function ProtectedPage() {
     slug: workspace.slug,
   }))
 
+  // ブレッドクラムを生成
+  const breadcrumbItems = generateBreadcrumbs({ isHomePage: true })
+
   return (
 
     <SidebarProvider className="flex flex-col">
-      <SiteHeader />
+      <SiteHeader breadcrumbItems={breadcrumbItems} />
       <div className="flex flex-1">
         <AppSidebar userProfile={userProfile} workspaces={workspaces} />
         <SidebarInset>

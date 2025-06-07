@@ -18,6 +18,8 @@ interface ChatDrawerProps {
     workspaceId: string
     categoryName: string
     categoryId: string
+    workspaceSlug: string
+    categorySlug: string
     children: React.ReactNode
 }
 
@@ -25,6 +27,8 @@ export function ChatDrawer({
     workspaceId,
     categoryName,
     categoryId,
+    workspaceSlug,
+    categorySlug,
     children
 }: ChatDrawerProps) {
     const [open, setOpen] = useState(false)
@@ -60,6 +64,8 @@ export function ChatDrawer({
                             workspaceId={workspaceId}
                             categoryId={categoryId}
                             categoryName={categoryName}
+                            workspaceSlug={workspaceSlug}
+                            categorySlug={categorySlug}
                             onSave={() => setOpen(false)}
                         />
                     </div>

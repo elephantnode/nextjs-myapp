@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { DnDWrapper } from '@/components/dnd-wrapper'
+import { generateBreadcrumbs } from '@/lib/breadcrumb-utils'
 
 type UserProfile = {
     id: string
@@ -268,11 +269,20 @@ export default async function CategoryPage({
         count: tagCounts[tagName]
     }))
 
+    // ブレッドクラムを生成
+    const breadcrumbItems = generateBreadcrumbs({
+        workspaceName: currentWorkspace.name,
+        workspaceSlug: currentWorkspace.slug,
+        categoryName: category.name,
+        categorySlug: category.slug
+    })
+
     return (
         <SidebarProvider className="flex flex-col">
             <SiteHeader 
                 workspaceId={currentWorkspace.id}
                 workspaceName={currentWorkspace.name}
+                breadcrumbItems={breadcrumbItems}
             />
             <DnDWrapper allCategories={allCategories}>
                 <div className="flex flex-1">
@@ -300,6 +310,9 @@ export default async function CategoryPage({
                 workspaceId={currentWorkspace.id}
                 categoryName={category.name}
                 categoryId={category.id}
+                workspaceName={currentWorkspace.name}
+                workspaceSlug={currentWorkspace.slug}
+                categorySlug={category.slug}
             />
         </SidebarProvider>
     )

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +19,7 @@ type SuggestedCategory = {
 
 interface WorkspaceChatInterfaceProps {
     workspaceId: string
-    workspaceName: string
+    workspaceSlug: string
     categories: Array<{
         id: string
         name: string
@@ -30,7 +31,7 @@ interface WorkspaceChatInterfaceProps {
 
 export function WorkspaceChatInterface({ 
     workspaceId, 
-    // workspaceName,
+    workspaceSlug,
     categories,
     onSave
 }: WorkspaceChatInterfaceProps) {
@@ -64,8 +65,9 @@ export function WorkspaceChatInterface({
     const [isSaving, setIsSaving] = useState(false)
     const [imageError, setImageError] = useState(false)
     const bottomRef = useRef<HTMLDivElement>(null)
-    // const router = useRouter()
-    // const supabase = createClient()
+    const router = useRouter()
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const supabase = createClient()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -239,6 +241,10 @@ export function WorkspaceChatInterface({
                 if (itemTagError) throw itemTagError
             }
 
+            // 選択されたカテゴリー情報を取得
+            const selectedCategory = categories.find(cat => cat.id === selectedCategoryId)
+            const categorySlug = selectedCategory?.slug || ''
+            
             // 成功メッセージ
             alert(`「${aiResponse.content.title}」を保存しました！${result.embedding_generated ? ' (AI検索用の埋め込み生成済み)' : ''}`)
             
@@ -253,10 +259,17 @@ export function WorkspaceChatInterface({
             // コールバック実行（ドロワーを閉じるなど）
             onSave?.()
             
-            // 少し待ってからページをリロード
-            setTimeout(() => {
-                window.location.reload()
-            }, 1000)
+            // カテゴリーページにリダイレクト
+            if (categorySlug) {
+                setTimeout(() => {
+                    router.push(`/workspace/${workspaceSlug}/${categorySlug}`)
+                }, 1000)
+            } else {
+                // カテゴリーが見つからない場合はワークスペースページにリダイレクト
+                setTimeout(() => {
+                    router.push(`/workspace/${workspaceSlug}`)
+                }, 1000)
+            }
 
         } catch (error) {
             console.error('保存エラー:', error)

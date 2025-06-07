@@ -31,13 +31,26 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // ベクトル埋め込み用のテキストを生成
+        // カテゴリー名を取得
+        let categoryName = null
+        if (category_id) {
+            const { data: categoryData } = await supabase
+                .from('categories')
+                .select('name')
+                .eq('id', category_id)
+                .single()
+            categoryName = categoryData?.name
+        }
+
+        // ベクトル埋め込み用のテキストを生成（カテゴリー情報含む）
         const embeddingText = createEmbeddingText({
             title,
             content,
             site_title,
             site_description,
-            url
+            site_name,
+            url,
+            category_name: categoryName
         })
 
         console.log('ベクトル化テキスト:', embeddingText)
@@ -127,13 +140,32 @@ export async function PUT(request: NextRequest) {
             )
         }
 
-        // ベクトル埋め込み用のテキストを生成
+        // 現在のアイテム情報とカテゴリー、タグを取得
+        const { data: currentItem } = await supabase
+            .from('items')
+            .select(`
+                category_id,
+                categories!inner(name),
+                item_tags!inner(tags!inner(name))
+            `)
+            .eq('id', id)
+            .single()
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const categoryName = (currentItem as any)?.categories?.name
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tags = (currentItem as any)?.item_tags?.map((it: any) => it.tags.name) || []
+
+        // ベクトル埋め込み用のテキストを生成（カテゴリー・タグ情報含む）
         const embeddingText = createEmbeddingText({
             title,
             content,
             site_title,
             site_description,
-            url
+            site_name,
+            url,
+            category_name: categoryName,
+            tags
         })
 
         // ベクトル埋め込みを生成

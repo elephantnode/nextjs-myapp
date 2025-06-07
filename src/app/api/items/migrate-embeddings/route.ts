@@ -17,10 +17,14 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // embeddingがnullのアイテムを取得
+        // embeddingがnullのアイテムを取得（カテゴリー・タグ情報含む）
         const { data: items, error: fetchError } = await supabase
             .from('items')
-            .select('id, title, content, site_title, site_description, url')
+            .select(`
+                id, title, content, site_title, site_description, site_name, url,
+                categories!inner(name),
+                item_tags(tags!inner(name))
+            `)
             .is('embedding', null)
             .eq('status', 'active')
             .limit(batchSize)
@@ -50,12 +54,20 @@ export async function POST(request: NextRequest) {
         // 各アイテムの埋め込みを生成
         for (const item of items) {
             try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const categoryName = (item as any)?.categories?.name
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const tags = (item as any)?.item_tags?.map((it: any) => it.tags.name) || []
+
                 const embeddingText = createEmbeddingText({
                     title: item.title,
                     content: item.content,
                     site_title: item.site_title,
                     site_description: item.site_description,
-                    url: item.url
+                    site_name: item.site_name,
+                    url: item.url,
+                    category_name: categoryName,
+                    tags
                 })
 
                 if (!embeddingText) {

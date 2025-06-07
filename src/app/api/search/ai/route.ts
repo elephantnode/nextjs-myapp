@@ -202,7 +202,7 @@ async function performVectorSearch(
             'match_items_by_embedding', 
             {
                 query_embedding: queryEmbedding,
-                match_threshold: 0.72,
+                match_threshold: 0.65,
                 match_count: limit,
                 target_workspace_id: workspaceId
             }

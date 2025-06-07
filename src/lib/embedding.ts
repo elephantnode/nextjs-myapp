@@ -31,14 +31,29 @@ export function createEmbeddingText(item: {
     content?: string
     site_title?: string
     site_description?: string
+    site_name?: string
     url?: string
+    category_name?: string
+    tags?: string[]
 }): string {
     const parts = []
     
+    // 基本情報
     if (item.title) parts.push(item.title)
     if (item.content) parts.push(item.content)
     if (item.site_title && item.site_title !== item.title) parts.push(item.site_title)
     if (item.site_description) parts.push(item.site_description)
+    if (item.site_name) parts.push(item.site_name)
+    
+    // カテゴリー情報を追加
+    if (item.category_name) {
+        parts.push(`カテゴリー:${item.category_name}`)
+    }
+    
+    // タグ情報を追加
+    if (item.tags && item.tags.length > 0) {
+        parts.push(`タグ:${item.tags.join(' ')}`)
+    }
     
     // URLからドメイン名を抽出（例：github.com, youtube.com など）
     if (item.url) {

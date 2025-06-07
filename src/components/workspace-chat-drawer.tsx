@@ -17,6 +17,7 @@ import { WorkspaceChatInterface } from "@/components/workspace-chat-interface"
 interface WorkspaceChatDrawerProps {
     workspaceId: string
     workspaceName: string
+    workspaceSlug: string
     categories: Array<{
         id: string
         name: string
@@ -29,6 +30,7 @@ interface WorkspaceChatDrawerProps {
 export function WorkspaceChatDrawer({
     workspaceId,
     workspaceName,
+    workspaceSlug,
     categories,
     children
 }: WorkspaceChatDrawerProps) {
@@ -61,9 +63,9 @@ export function WorkspaceChatDrawer({
                     </DrawerHeader>
                     
                     <div className="px-4 pb-4 flex-1 overflow-hidden">
-                        <WorkspaceChatInterface 
+                                                <WorkspaceChatInterface
                             workspaceId={workspaceId}
-                            workspaceName={workspaceName}
+                            workspaceSlug={workspaceSlug}
                             categories={categories}
                             onSave={() => setOpen(false)}
                         />

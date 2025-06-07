@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import EmptyCategoryChatSection from '@/components/EmptyCategoryChatSection'
 import { WorkspaceItemsList } from '@/components/workspace-items-list'
 import { FloatingChatButton } from '@/components/floating-chat-button'
+import { generateBreadcrumbs } from '@/lib/breadcrumb-utils'
 
 type UserProfile = {
     id: string
@@ -243,12 +244,19 @@ export default async function WorkspacePage({ params }: { params: Promise<{ name
         tagCounts
     })
 
+    // ブレッドクラムを生成
+    const breadcrumbItems = generateBreadcrumbs({
+        workspaceName: targetWorkspace.name,
+        workspaceSlug: targetWorkspace.slug
+    })
+
     return (
 
         <SidebarProvider className="flex flex-col">
             <SiteHeader 
                 workspaceId={targetWorkspace.id}
                 workspaceName={targetWorkspace.name}
+                breadcrumbItems={breadcrumbItems}
             />
             <div className="flex flex-1">
                 <AppSidebar 
